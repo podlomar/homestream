@@ -7,6 +7,18 @@ class VideoPlayer {
     this.noVideoMessage = document.getElementById('noVideoMessage');
     this.refreshBtn = document.getElementById('refreshBtn');
     this.fullscreenBtn = document.getElementById('fullscreenBtn');
+    this.videoOverlay = document.getElementById('videoOverlay');
+
+    // Overlay controls
+    this.rewind15Btn = document.getElementById('rewind15Btn');
+    this.playPauseBtn = document.getElementById('playPauseBtn');
+    this.forward15Btn = document.getElementById('forward15Btn');
+    this.overlayFullscreenBtn = document.getElementById('overlayFullscreenBtn');
+
+    // Main controls
+    this.rewind15BtnMain = document.getElementById('rewind15BtnMain');
+    this.playPauseBtnMain = document.getElementById('playPauseBtnMain');
+    this.forward15BtnMain = document.getElementById('forward15BtnMain');
 
     this.currentVideo = null;
     this.videos = [];
@@ -18,12 +30,48 @@ class VideoPlayer {
   initializeEventListeners() {
     this.refreshBtn.addEventListener('click', () => this.loadVideos());
 
+    // Main control buttons
     this.fullscreenBtn.addEventListener('click', () => this.toggleFullscreen());
+    this.rewind15BtnMain.addEventListener('click', () => this.rewind15());
+    this.playPauseBtnMain.addEventListener('click', () => this.togglePlayPause());
+    this.forward15BtnMain.addEventListener('click', () => this.forward15());
+
+    // Overlay control buttons
+    this.rewind15Btn.addEventListener('click', () => this.rewind15());
+    this.playPauseBtn.addEventListener('click', () => this.togglePlayPause());
+    this.forward15Btn.addEventListener('click', () => this.forward15());
+    this.overlayFullscreenBtn.addEventListener('click', () => this.toggleFullscreen());
 
     this.videoPlayer.addEventListener('loadstart', () => {
       this.noVideoMessage.style.display = 'none';
       this.videoPlayer.style.display = 'block';
+      this.videoOverlay.style.display = 'block';
       this.fullscreenBtn.style.display = 'inline-block';
+      this.rewind15BtnMain.style.display = 'inline-block';
+      this.playPauseBtnMain.style.display = 'inline-block';
+      this.forward15BtnMain.style.display = 'inline-block';
+    });
+
+    // Touch/mobile events for overlay controls
+    this.videoPlayer.addEventListener('touchstart', () => {
+      this.showOverlayControls();
+    });
+
+    this.videoPlayer.addEventListener('touchend', () => {
+      setTimeout(() => this.hideOverlayControls(), 3000);
+    });
+
+    // Fullscreen change events
+    document.addEventListener('fullscreenchange', () => {
+      this.handleFullscreenChange();
+    });
+
+    document.addEventListener('webkitfullscreenchange', () => {
+      this.handleFullscreenChange();
+    });
+
+    document.addEventListener('mozfullscreenchange', () => {
+      this.handleFullscreenChange();
     });
 
     // Keyboard shortcuts
@@ -40,11 +88,17 @@ class VideoPlayer {
             break;
           case 'ArrowLeft':
             e.preventDefault();
-            this.videoPlayer.currentTime -= 10;
+            this.rewind15();
             break;
           case 'ArrowRight':
             e.preventDefault();
-            this.videoPlayer.currentTime += 10;
+            this.forward15();
+            break;
+          case 'Escape':
+            if (document.fullscreenElement) {
+              e.preventDefault();
+              document.exitFullscreen();
+            }
             break;
         }
       }
@@ -168,13 +222,62 @@ class VideoPlayer {
     }
   }
 
+  rewind15() {
+    this.videoPlayer.currentTime = Math.max(0, this.videoPlayer.currentTime - 15);
+  }
+
+  forward15() {
+    this.videoPlayer.currentTime = Math.min(this.videoPlayer.duration, this.videoPlayer.currentTime + 15);
+  }
+
   toggleFullscreen() {
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
+    if (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement) {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      } else if (document.mozCancelFullScreen) {
+        document.mozCancelFullScreen();
+      }
     } else {
-      this.videoPlayer.requestFullscreen().catch(err => {
-        console.log('Error attempting to enable fullscreen:', err);
-      });
+      const element = this.videoPlayer;
+      if (element.requestFullscreen) {
+        element.requestFullscreen();
+      } else if (element.webkitRequestFullscreen) {
+        element.webkitRequestFullscreen();
+      } else if (element.mozRequestFullScreen) {
+        element.mozRequestFullScreen();
+      }
+    }
+  }
+
+  handleFullscreenChange() {
+    const isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement);
+
+    if (isFullscreen) {
+      // In fullscreen mode
+      this.videoOverlay.style.display = 'block';
+      this.showOverlayControls();
+      // Auto-hide controls after 3 seconds
+      setTimeout(() => this.hideOverlayControls(), 3000);
+    } else {
+      // Exiting fullscreen
+      this.videoOverlay.style.display = 'block';
+      this.showOverlayControls();
+    }
+  }
+
+  showOverlayControls() {
+    if (this.videoOverlay) {
+      this.videoOverlay.style.opacity = '1';
+      this.videoOverlay.style.pointerEvents = 'all';
+    }
+  }
+
+  hideOverlayControls() {
+    if (this.videoOverlay && (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement)) {
+      this.videoOverlay.style.opacity = '0';
+      this.videoOverlay.style.pointerEvents = 'none';
     }
   }
 
@@ -226,5 +329,5 @@ console.log('%c🎬 HomeStream Video Player Loaded! 🎬',
 console.log('%cKeyboard shortcuts:', 'color: #666; font-weight: bold;');
 console.log('Spacebar: Play/Pause');
 console.log('F: Toggle fullscreen');
-console.log('Left Arrow: Rewind 10s');
-console.log('Right Arrow: Forward 10s');
+console.log('Left Arrow: Rewind 15s');
+console.log('Right Arrow: Forward 15s');

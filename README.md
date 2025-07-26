@@ -4,13 +4,16 @@ A simple Node.js web application that allows you to stream and play videos from 
 
 ## Features
 
-- 🎬 Browse and play videos from your local Videos folder
-- 📱 Responsive design that works on desktop and mobile
+- 🎬 Browse and play videos from your local Videos folder recursively
+- 📁 Organized folder view with video counts and file sizes
+- 📱 **Mobile-first responsive design** optimized for phone viewing
 - ⚡ Fast video streaming with range request support
-- 🎮 Keyboard controls (Space, F, Arrow keys)
+- 🎮 Touch-friendly controls with keyboard shortcuts
 - 🔄 Refresh video library
-- 📺 Fullscreen video playback
+- 📺 Large full-screen video player (90%+ on mobile)
+- ⏪⏩ Quick 15-second seeking controls that work in fullscreen
 - 🌐 Access from any device on your local network
+- ✨ Overlay controls that work perfectly in fullscreen mode
 
 ## Supported Video Formats
 
@@ -45,10 +48,10 @@ A simple Node.js web application that allows you to stream and play videos from 
    ```
 
 2. Open your browser and go to:
-   - `http://localhost:3000` (local access)
-   - `http://[your-ip]:3000` (network access - the server will display your IP when starting)
+   - `http://localhost:3001` (local access)
+   - `http://[your-ip]:3001` (network access - the server will display your IP when starting)
 
-3. The application will automatically scan your `/home/podlomar/Videos` folder and display all compatible video files
+3. The application will automatically scan your `/home/podlomar/Videos` folder recursively and display all compatible video files organized by folder
 
 ## Configuration
 
@@ -63,12 +66,21 @@ const VIDEOS_DIR = '/path/to/your/videos';
 When a video is playing:
 - **Spacebar**: Play/Pause
 - **F**: Toggle fullscreen
-- **Left Arrow**: Rewind 10 seconds
-- **Right Arrow**: Forward 10 seconds
+- **Left Arrow**: Rewind 15 seconds
+- **Right Arrow**: Forward 15 seconds
+
+## Controls
+
+- **Mobile Touch Controls**: Tap the video to show overlay controls on mobile devices
+- **Overlay Controls**: Hover over the video (desktop) or tap (mobile) to see convenient overlay buttons for play/pause, seeking, and fullscreen
+- **Fullscreen Controls**: Overlay controls work perfectly in fullscreen mode with auto-hide functionality
+- **Main Controls**: Use the buttons below the video player for the same functions
+- **Large Video Player**: The video player takes up 85-92% of the screen height on mobile for optimal viewing
+- **Touch-Optimized**: Larger touch targets and mobile-friendly button sizes
 
 ## Network Access
 
-The server binds to `0.0.0.0:3000`, making it accessible from other devices on your local network. When you start the server, it will display the URLs you can use to access it from other devices.
+The server binds to `0.0.0.0:3001`, making it accessible from other devices on your local network. When you start the server, it will display the URLs you can use to access it from other devices.
 
 ## Security Note
 

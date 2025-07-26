@@ -9,44 +9,136 @@ body {
   background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
   color: #ffffff;
   min-height: 100vh;
+  /* Improve touch scrolling on mobile */
+  -webkit-overflow-scrolling: touch;
+  /* Prevent zoom on double tap */
+  touch-action: manipulation;
 }
 
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 10px;
 }
 
 header {
   text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: 20px;
 }
 
 header h1 {
-  font-size: 3em;
-  margin-bottom: 10px;
+  font-size: 2.5em;
+  margin-bottom: 8px;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 header p {
-  font-size: 1.2em;
+  font-size: 1.1em;
   opacity: 0.9;
 }
 
 .video-player-section {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 15px;
-  padding: 20px;
-  margin-bottom: 30px;
+  padding: 15px;
+  margin-bottom: 20px;
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 #videoPlayer {
   width: 100%;
-  max-height: 70vh;
+  height: 85vh;
+  max-height: 85vh;
+  min-height: 250px;
   border-radius: 10px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  object-fit: contain;
+  background: #000;
+  /* Prevent text selection */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.video-container {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.video-overlay-controls {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 1000;
+  /* Ensure overlay works in fullscreen */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.video-container:hover .video-overlay-controls,
+.video-overlay-controls.show {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* Always show controls on touch devices */
+@media (hover: none) and (pointer: coarse) {
+  .video-overlay-controls {
+    opacity: 1;
+    pointer-events: all;
+  }
+}
+
+.overlay-buttons {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.overlay-btn {
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  color: white;
+  padding: 15px 18px;
+  border-radius: 50px;
+  cursor: pointer;
+  font-size: 1.1em;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  min-width: 70px;
+  text-align: center;
+  /* Better touch targets */
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Prevent text selection */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  /* Remove tap highlight on mobile */
+  -webkit-tap-highlight-color: transparent;
+}
+
+.overlay-btn:hover,
+.overlay-btn:active {
+  background: rgba(255, 255, 255, 0.9);
+  color: #000;
+  transform: scale(1.05);
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
 }
 
 .no-video {
@@ -214,34 +306,128 @@ header p {
 /* Responsive design */
 @media (max-width: 768px) {
   .container {
-    padding: 15px;
+    padding: 8px;
   }
 
   header h1 {
-    font-size: 2.5em;
+    font-size: 2.2em;
+  }
+
+  header p {
+    font-size: 1em;
+  }
+
+  .video-player-section {
+    padding: 10px;
+    margin-bottom: 15px;
+  }
+
+  #videoPlayer {
+    height: 90vh;
+    max-height: 90vh;
+    min-height: 200px;
   }
 
   .video-grid {
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 15px;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
   }
 
   .controls {
-    flex-direction: column;
-    align-items: center;
+    flex-direction: row;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
   .btn {
-    width: 200px;
+    padding: 10px 16px;
+    font-size: 0.9em;
+    min-width: 100px;
+  }
+
+  .overlay-btn {
+    padding: 12px 15px;
+    font-size: 1em;
+    min-width: 60px;
+    min-height: 45px;
+  }
+
+  .overlay-buttons {
+    gap: 8px;
+  }
+
+  .folder-title {
+    font-size: 1.3em;
+    padding: 12px;
+  }
+
+  .video-item {
+    padding: 15px;
+  }
+
+  .video-stats {
+    padding: 15px;
+    margin-bottom: 20px;
   }
 }
 
 @media (max-width: 480px) {
+  .container {
+    padding: 5px;
+  }
+
   .video-grid {
     grid-template-columns: 1fr;
+    gap: 10px;
   }
 
   header h1 {
-    font-size: 2em;
+    font-size: 1.8em;
+  }
+
+  .video-player-section {
+    padding: 8px;
+  }
+
+  #videoPlayer {
+    height: 92vh;
+    max-height: 92vh;
+    border-radius: 8px;
+  }
+
+  .btn {
+    padding: 8px 12px;
+    font-size: 0.85em;
+    min-width: 80px;
+  }
+
+  .overlay-btn {
+    padding: 10px 12px;
+    font-size: 0.9em;
+    min-width: 50px;
+    min-height: 40px;
+  }
+
+  .overlay-buttons {
+    gap: 6px;
+  }
+
+  .folder-title {
+    font-size: 1.2em;
+    padding: 10px;
+  }
+
+  .video-item {
+    padding: 12px;
+  }
+
+  .video-name {
+    font-size: 1em;
+  }
+
+  .video-extension,
+  .video-size {
+    font-size: 0.8em;
   }
 }

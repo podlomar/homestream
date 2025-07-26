@@ -3,7 +3,10 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#2a5298">
   <title>HomeStream - Local Video Player</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -16,9 +19,19 @@
     </header>
 
     <div class="video-player-section">
-      <video id="videoPlayer" controls style="display: none;">
-        Your browser does not support the video tag.
-      </video>
+      <div class="video-container">
+        <video id="videoPlayer" controls style="display: none;">
+          Your browser does not support the video tag.
+        </video>
+        <div class="video-overlay-controls" id="videoOverlay" style="display: none;">
+          <div class="overlay-buttons">
+            <button class="overlay-btn" id="rewind15Btn" title="Rewind 15 seconds">⏪ 15s</button>
+            <button class="overlay-btn" id="playPauseBtn" title="Play/Pause">⏯️</button>
+            <button class="overlay-btn" id="forward15Btn" title="Forward 15 seconds">15s ⏩</button>
+            <button class="overlay-btn" id="overlayFullscreenBtn" title="Toggle Fullscreen">⛶</button>
+          </div>
+        </div>
+      </div>
       <div id="noVideoMessage" class="no-video">
         Select a video from the list below to start watching
       </div>
@@ -26,6 +39,9 @@
 
     <div class="controls">
       <button id="refreshBtn" class="btn">🔄 Refresh Library</button>
+      <button id="rewind15BtnMain" class="btn" style="display: none;">⏪ 15s</button>
+      <button id="playPauseBtnMain" class="btn" style="display: none;">⏯️ Play/Pause</button>
+      <button id="forward15BtnMain" class="btn" style="display: none;">15s ⏩</button>
       <button id="fullscreenBtn" class="btn" style="display: none;">⛶ Fullscreen</button>
     </div>
 
