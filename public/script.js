@@ -23,6 +23,12 @@ class VideoPlayer {
     this.currentVideo = null;
     this.videos = [];
 
+    // Video position tracking
+    this.savePositionInterval = null;
+    this.SAVE_INTERVAL = 5000; // Save position every 5 seconds
+    this.MIN_DURATION_TO_SAVE = 30; // Only save for videos longer than 30 seconds
+    this.RESUME_THRESHOLD = 0.95; // Don't resume if watched more than 95%
+
     this.initializeEventListeners();
     this.loadVideos();
   }
@@ -72,6 +78,28 @@ class VideoPlayer {
 
     document.addEventListener('mozfullscreenchange', () => {
       this.handleFullscreenChange();
+    });
+
+    // Video position tracking events
+    this.videoPlayer.addEventListener('loadedmetadata', () => {
+      this.resumeVideoPosition();
+    });
+
+    this.videoPlayer.addEventListener('timeupdate', () => {
+      this.schedulePositionSave();
+    });
+
+    this.videoPlayer.addEventListener('pause', () => {
+      this.saveVideoPosition();
+    });
+
+    this.videoPlayer.addEventListener('ended', () => {
+      this.clearVideoPosition();
+    });
+
+    // Save position before page unload
+    window.addEventListener('beforeunload', () => {
+      this.saveVideoPosition();
     });
 
     // Keyboard shortcuts
@@ -166,17 +194,26 @@ class VideoPlayer {
                         ${folderIcon} ${folder} (${videos.length} videos)
                     </h3>
                     <div class="video-grid">
-                        ${videos.map(video => `
-                            <div class="video-item" data-video-path="${video.path}" data-video-name="${video.name}" data-video-relative="${video.relativePath}">
+                        ${videos.map(video => {
+        const resumeData = this.getResumeData(video.path);
+        const resumeIndicator = resumeData ?
+          `<div class="resume-indicator" title="Resume from ${resumeData.timeString}">
+                                    ▶️ ${resumeData.timeString} (${resumeData.progressPercent}%)
+                                </div>` : '';
+
+        return `
+                            <div class="video-item ${resumeData ? 'has-resume' : ''}" data-video-path="${video.path}" data-video-name="${video.name}" data-video-relative="${video.relativePath}">
                                 <div class="video-icon">🎬</div>
                                 <div class="video-name">${this.escapeHtml(video.displayName)}</div>
                                 <div class="video-details">
                                     <div class="video-extension">${this.getFileExtension(video.name).toUpperCase()}</div>
                                     <div class="video-size">${this.formatFileSize(video.size)}</div>
                                 </div>
+                                ${resumeIndicator}
                                 <div class="video-path">${this.escapeHtml(video.relativePath)}</div>
                             </div>
-                        `).join('')}
+                        `;
+      }).join('')}
                     </div>
                 </div>
             `;
@@ -281,6 +318,116 @@ class VideoPlayer {
     }
   }
 
+  // Video position tracking methods
+  getVideoKey(videoPath) {
+    // Create a unique key for the video based on its path
+    return `homestream_position_${btoa(videoPath).replace(/[^a-zA-Z0-9]/g, '')}`;
+  }
+
+  saveVideoPosition() {
+    if (!this.currentVideo || !this.videoPlayer.duration) return;
+
+    const currentTime = this.videoPlayer.currentTime;
+    const duration = this.videoPlayer.duration;
+
+    // Only save if video is longer than minimum duration and not near the end
+    if (duration < this.MIN_DURATION_TO_SAVE) return;
+    if (currentTime / duration > this.RESUME_THRESHOLD) {
+      // Video is almost finished, clear the saved position
+      this.clearVideoPosition();
+      return;
+    }
+
+    const videoKey = this.getVideoKey(this.currentVideo.path);
+    const positionData = {
+      currentTime: currentTime,
+      duration: duration,
+      timestamp: Date.now(),
+      videoName: this.currentVideo.name
+    };
+
+    try {
+      localStorage.setItem(videoKey, JSON.stringify(positionData));
+    } catch (e) {
+      console.warn('Could not save video position:', e);
+    }
+  }
+
+  resumeVideoPosition() {
+    if (!this.currentVideo) return;
+
+    const videoKey = this.getVideoKey(this.currentVideo.path);
+
+    try {
+      const savedData = localStorage.getItem(videoKey);
+      if (!savedData) return;
+
+      const positionData = JSON.parse(savedData);
+      const savedTime = positionData.currentTime;
+      const savedDuration = positionData.duration;
+
+      // Only resume if the saved position is valid and recent (within 30 days)
+      const isRecent = (Date.now() - positionData.timestamp) < (30 * 24 * 60 * 60 * 1000);
+      const isValidPosition = savedTime > 10 && savedTime < (savedDuration * this.RESUME_THRESHOLD);
+
+      if (isRecent && isValidPosition) {
+        this.videoPlayer.currentTime = savedTime;
+        this.showResumeNotification(savedTime);
+      }
+    } catch (e) {
+      console.warn('Could not resume video position:', e);
+    }
+  }
+
+  clearVideoPosition() {
+    if (!this.currentVideo) return;
+
+    const videoKey = this.getVideoKey(this.currentVideo.path);
+    try {
+      localStorage.removeItem(videoKey);
+    } catch (e) {
+      console.warn('Could not clear video position:', e);
+    }
+  }
+
+  schedulePositionSave() {
+    // Throttle saving to avoid too frequent localStorage writes
+    if (this.savePositionInterval) return;
+
+    this.savePositionInterval = setTimeout(() => {
+      this.saveVideoPosition();
+      this.savePositionInterval = null;
+    }, this.SAVE_INTERVAL);
+  }
+
+  showResumeNotification(resumeTime) {
+    const minutes = Math.floor(resumeTime / 60);
+    const seconds = Math.floor(resumeTime % 60);
+    const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+    // Create or update notification
+    let notification = document.getElementById('resumeNotification');
+    if (!notification) {
+      notification = document.createElement('div');
+      notification.id = 'resumeNotification';
+      notification.className = 'resume-notification';
+      document.body.appendChild(notification);
+    }
+
+    notification.innerHTML = `
+            <div class="resume-content">
+                <span>▶️ Resumed from ${timeString}</span>
+            </div>
+        `;
+
+    notification.style.display = 'block';
+
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+      notification.style.display = 'none';
+    }, 3000);
+  }
+
   showLoading() {
     this.loadingMessage.style.display = 'block';
     this.videoList.innerHTML = '';
@@ -307,6 +454,41 @@ class VideoPlayer {
 
   getFileExtension(filename) {
     return filename.split('.').pop() || '';
+  }
+
+  getResumeData(videoPath) {
+    const videoKey = this.getVideoKey(videoPath);
+
+    try {
+      const savedData = localStorage.getItem(videoKey);
+      if (!savedData) return null;
+
+      const positionData = JSON.parse(savedData);
+      const savedTime = positionData.currentTime;
+      const savedDuration = positionData.duration;
+
+      // Check if the saved position is valid and recent (within 30 days)
+      const isRecent = (Date.now() - positionData.timestamp) < (30 * 24 * 60 * 60 * 1000);
+      const isValidPosition = savedTime > 10 && savedTime < (savedDuration * this.RESUME_THRESHOLD);
+
+      if (isRecent && isValidPosition) {
+        const minutes = Math.floor(savedTime / 60);
+        const seconds = Math.floor(savedTime % 60);
+        const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        const progressPercent = Math.round((savedTime / savedDuration) * 100);
+
+        return {
+          currentTime: savedTime,
+          duration: savedDuration,
+          timeString: timeString,
+          progressPercent: progressPercent
+        };
+      }
+    } catch (e) {
+      console.warn('Could not get resume data:', e);
+    }
+
+    return null;
   }
 
   formatFileSize(bytes) {

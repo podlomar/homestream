@@ -243,6 +243,7 @@ header p {
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
   text-align: center;
+  position: relative;
 }
 
 .video-item:hover {
@@ -255,6 +256,15 @@ header p {
   background: rgba(74, 144, 226, 0.3);
   border-color: rgba(74, 144, 226, 0.6);
   box-shadow: 0 0 20px rgba(74, 144, 226, 0.4);
+}
+
+.video-item.has-resume {
+  border-color: rgba(76, 175, 80, 0.6);
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.video-item.has-resume:hover {
+  background: rgba(76, 175, 80, 0.2);
 }
 
 .video-icon {
@@ -301,6 +311,53 @@ header p {
   margin-top: 5px;
   font-style: italic;
   word-break: break-all;
+}
+
+.resume-indicator {
+  background: rgba(76, 175, 80, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.8em;
+  margin: 8px 0;
+  display: inline-block;
+  font-weight: bold;
+  border: 1px solid rgba(76, 175, 80, 1);
+}
+
+.resume-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: rgba(76, 175, 80, 0.95);
+  color: white;
+  padding: 15px 20px;
+  border-radius: 10px;
+  font-weight: bold;
+  z-index: 2000;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(76, 175, 80, 1);
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+  animation: slideInRight 0.3s ease;
+  display: none;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.resume-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* Responsive design */
@@ -369,6 +426,19 @@ header p {
   .video-stats {
     padding: 15px;
     margin-bottom: 20px;
+  }
+
+  .resume-notification {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    padding: 12px 15px;
+    font-size: 0.9em;
+  }
+
+  .resume-indicator {
+    font-size: 0.75em;
+    padding: 3px 6px;
   }
 }
 

@@ -12,6 +12,8 @@ A simple Node.js web application that allows you to stream and play videos from 
 - 🔄 Refresh video library
 - 📺 Large full-screen video player (90%+ on mobile)
 - ⏪⏩ Quick 15-second seeking controls that work in fullscreen
+- 💾 **Automatic video position tracking** - remembers where you left off
+- 🔄 **Resume playback** from your last position
 - 🌐 Access from any device on your local network
 - ✨ Overlay controls that work perfectly in fullscreen mode
 
