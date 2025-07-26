@@ -9,8 +9,7 @@ class VideoPlayer {
     this.fullscreenBtn = document.getElementById('fullscreenBtn');
     this.videoOverlay = document.getElementById('videoOverlay');
 
-    // Browse controls
-    this.toggleViewBtn = document.getElementById('toggleViewBtn');
+    // Browse controls (only expand and search now)
     this.toggleExpandBtn = document.getElementById('toggleExpandBtn');
     this.searchInput = document.getElementById('searchInput');
 
@@ -29,7 +28,6 @@ class VideoPlayer {
     this.videos = [];
     this.filteredVideos = [];
     this.expandedFolders = new Set();
-    this.isTreeView = false;
     this.allExpanded = false;
 
     // Video position tracking
@@ -45,8 +43,7 @@ class VideoPlayer {
   initializeEventListeners() {
     this.refreshBtn.addEventListener('click', () => this.loadVideos());
 
-    // Browse controls
-    this.toggleViewBtn.addEventListener('click', () => this.toggleView());
+    // Browse controls (simplified - only expand and search)
     this.toggleExpandBtn.addEventListener('click', () => this.toggleExpandAll());
     this.searchInput.addEventListener('input', (e) => this.handleSearch(e.target.value));
 
@@ -191,17 +188,12 @@ class VideoPlayer {
     this.allData = data;
     this.filteredVideos = data.videos;
 
-    if (this.isTreeView) {
-      html += this.renderTreeViewVideos(data);
-    } else {
-      html += this.renderGridViewVideos(data);
-    }
+    // Always use tree view (folder view)
+    html += this.renderTreeViewVideos(data);
 
     this.videoList.innerHTML = html;
     this.addVideoClickListeners();
-    if (this.isTreeView) {
-      this.addFolderClickListeners();
-    }
+    this.addFolderClickListeners();
   }
 
   renderDirectoryStatus(directories) {
@@ -263,73 +255,6 @@ class VideoPlayer {
       case 'scan_error': return '#ff5722';
       default: return '#757575';
     }
-  }
-
-  renderGridViewVideos(data) {
-    // Create folder sections
-    let html = `
-      <div class="video-stats">
-        <h3>📊 Library Stats</h3>
-        <p>Total Videos: ${data.totalCount} | Folders: ${Object.keys(data.videosByFolder).length}</p>
-      </div>
-    `;
-
-    // Sort folders alphabetically, but put main directories first
-    const sortedFolders = Object.keys(data.videosByFolder).sort((a, b) => {
-      // Extract directory name (before the slash)
-      const dirA = a.split('/')[0];
-      const dirB = b.split('/')[0];
-
-      if (dirA !== dirB) {
-        return dirA.localeCompare(dirB);
-      }
-      return a.localeCompare(b);
-    });
-
-    for (const folder of sortedFolders) {
-      const videos = data.videosByFolder[folder];
-      const [directoryName, ...folderParts] = folder.split('/');
-      const folderDisplayName = folderParts.length > 0 ? folderParts.join('/') : 'Root';
-      const folderIcon = folderDisplayName === 'Root' ? '🏠' : '📁';
-
-      html += `
-        <div class="folder-section">
-          <h3 class="folder-title">
-            <span class="directory-badge">${directoryName}</span>
-            ${folderIcon} ${folderDisplayName} (${videos.length} videos)
-          </h3>
-          <div class="video-grid">
-            ${videos.map(video => {
-        const resumeData = this.getResumeData(video.path);
-        const resumeIndicator = resumeData ?
-          `<div class="resume-indicator" title="Resume from ${resumeData.timeString}">
-                  ▶️ ${resumeData.timeString} (${resumeData.progressPercent}%)
-                </div>` : '';
-
-        return `
-                <div class="video-item ${resumeData ? 'has-resume' : ''}" data-video-path="${video.path}" data-video-name="${video.name}" data-video-relative="${video.relativePath}" data-video-directory="${video.directory}">
-                  <div class="video-icon">🎬</div>
-                  <div class="video-name">${this.escapeHtml(video.displayName)}</div>
-                  <div class="video-details">
-                    <div class="video-extension">${this.getFileExtension(video.name).toUpperCase()}</div>
-                    <div class="video-size">${this.formatFileSize(video.size)}</div>
-                  </div>
-                  ${resumeIndicator}
-                  <div class="video-path">${this.escapeHtml(video.relativePath)}</div>
-                </div>
-              `;
-      }).join('')}
-          </div>
-        </div>
-      `;
-    }
-
-    this.videoList.className = 'video-grid';
-    return html;
-  }
-
-  renderTreeViewVideos(data) {
-    this.addVideoClickListeners();
   }
 
   renderTreeViewVideos(data) {
@@ -435,12 +360,6 @@ class VideoPlayer {
     this.renderVideoList(this.allData);
   }
 
-  toggleView() {
-    this.isTreeView = !this.isTreeView;
-    this.toggleViewBtn.textContent = this.isTreeView ? '📋 Grid View' : '📁 Folder View';
-    this.renderVideoList(this.allData);
-  }
-
   toggleExpandAll() {
     this.allExpanded = !this.allExpanded;
     this.toggleExpandBtn.textContent = this.allExpanded ? '📁 Collapse All' : '📂 Expand All';
@@ -455,9 +374,8 @@ class VideoPlayer {
       this.expandedFolders.clear();
     }
 
-    if (this.isTreeView) {
-      this.renderVideoList(this.allData);
-    }
+    // Always re-render since we only use tree view now
+    this.renderVideoList(this.allData);
   }
 
   handleSearch(searchTerm) {

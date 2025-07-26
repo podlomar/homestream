@@ -18,6 +18,11 @@ const VIDEO_DIRECTORIES = [
     path: '/media/podlomar/Data/video',
     description: 'Movie collection (external drive)'
   },
+  {
+    name: 'SanDisk Archive',
+    path: '/media/podlomar/SanDisk',
+    description: 'Archived videos (network storage)'
+  }
 ];
 
 // Serve static files from public directory
