@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HomeStream - Local Video Player</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <h1>🎬 HomeStream</h1>
+      <p>Local Video Library</p>
+    </header>
+
+    <div class="video-player-section">
+      <video id="videoPlayer" controls style="display: none;">
+        Your browser does not support the video tag.
+      </video>
+      <div id="noVideoMessage" class="no-video">
+        Select a video from the list below to start watching
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="refreshBtn" class="btn">🔄 Refresh Library</button>
+      <button id="fullscreenBtn" class="btn" style="display: none;">⛶ Fullscreen</button>
+    </div>
+
+    <div class="video-list-section">
+      <h2>Video Library</h2>
+      <div id="loadingMessage" class="loading">Loading videos...</div>
+      <div id="errorMessage" class="error" style="display: none;"></div>
+      <div id="videoList" class="video-grid"></div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+
+</html>
