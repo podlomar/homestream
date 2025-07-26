@@ -71,6 +71,19 @@ When a video is playing:
 - **Left Arrow**: Rewind 15 seconds
 - **Right Arrow**: Forward 15 seconds
 
+## Video Position Tracking
+
+HomeStream automatically remembers where you stopped watching each video:
+
+- **Automatic Saving**: Your position is saved every 5 seconds while watching and when you pause
+- **Smart Resume**: Only saves positions for videos longer than 30 seconds and resumes if you haven't watched 95% or more
+- **Visual Indicators**: Videos with saved positions show a green border and resume indicator with timestamp and progress percentage
+- **Cross-Device**: Position data is stored locally in your browser, so it works across sessions
+- **Auto-Cleanup**: Positions are automatically cleared when you finish watching a video or after 30 days
+- **Resume Notification**: Shows a notification when resuming from a saved position
+
+Videos with saved positions will display: **▶️ 15:30 (65%)** indicating you can resume from 15 minutes 30 seconds (65% progress).
+
 ## Controls
 
 - **Mobile Touch Controls**: Tap the video to show overlay controls on mobile devices
@@ -79,6 +92,8 @@ When a video is playing:
 - **Main Controls**: Use the buttons below the video player for the same functions
 - **Large Video Player**: The video player takes up 85-92% of the screen height on mobile for optimal viewing
 - **Touch-Optimized**: Larger touch targets and mobile-friendly button sizes
+- **Video Position Tracking**: Automatically saves your watching progress every 5 seconds and when you pause
+- **Resume Playback**: Videos with saved positions show a green resume indicator and automatically resume from where you left off
 
 ## Network Access
 

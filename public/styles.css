@@ -182,6 +182,100 @@ header p {
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
 }
 
+.browse-controls {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 25px;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 10px 15px;
+  border-radius: 25px;
+  font-size: 1em;
+  backdrop-filter: blur(10px);
+  min-width: 250px;
+  transition: all 0.3s ease;
+}
+
+.search-input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.search-input:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+}
+
+.folder-tree {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 15px;
+  padding: 20px;
+  margin-bottom: 30px;
+}
+
+.folder-item {
+  margin-bottom: 15px;
+}
+
+.folder-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 15px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.folder-header:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.folder-header.expanded {
+  background: rgba(74, 144, 226, 0.2);
+  border-color: rgba(74, 144, 226, 0.4);
+}
+
+.folder-toggle {
+  font-size: 1.2em;
+  transition: transform 0.3s ease;
+  width: 20px;
+  text-align: center;
+}
+
+.folder-toggle.expanded {
+  transform: rotate(90deg);
+}
+
+.folder-content {
+  margin-left: 30px;
+  margin-top: 15px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.folder-content.expanded {
+  max-height: 2000px;
+}
+
+.folder-videos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 15px;
+}
+
 .loading,
 .error {
   text-align: center;

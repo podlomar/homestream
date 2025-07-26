@@ -9,6 +9,11 @@ class VideoPlayer {
     this.fullscreenBtn = document.getElementById('fullscreenBtn');
     this.videoOverlay = document.getElementById('videoOverlay');
 
+    // Browse controls
+    this.toggleViewBtn = document.getElementById('toggleViewBtn');
+    this.toggleExpandBtn = document.getElementById('toggleExpandBtn');
+    this.searchInput = document.getElementById('searchInput');
+
     // Overlay controls
     this.rewind15Btn = document.getElementById('rewind15Btn');
     this.playPauseBtn = document.getElementById('playPauseBtn');
@@ -22,6 +27,10 @@ class VideoPlayer {
 
     this.currentVideo = null;
     this.videos = [];
+    this.filteredVideos = [];
+    this.expandedFolders = new Set();
+    this.isTreeView = false;
+    this.allExpanded = false;
 
     // Video position tracking
     this.savePositionInterval = null;
@@ -35,6 +44,11 @@ class VideoPlayer {
 
   initializeEventListeners() {
     this.refreshBtn.addEventListener('click', () => this.loadVideos());
+
+    // Browse controls
+    this.toggleViewBtn.addEventListener('click', () => this.toggleView());
+    this.toggleExpandBtn.addEventListener('click', () => this.toggleExpandAll());
+    this.searchInput.addEventListener('input', (e) => this.handleSearch(e.target.value));
 
     // Main control buttons
     this.fullscreenBtn.addEventListener('click', () => this.toggleFullscreen());
@@ -169,6 +183,18 @@ class VideoPlayer {
       return;
     }
 
+    // Store the data for filtering
+    this.allData = data;
+    this.filteredVideos = data.videos;
+
+    if (this.isTreeView) {
+      this.renderTreeView(data);
+    } else {
+      this.renderGridView(data);
+    }
+  }
+
+  renderGridView(data) {
     // Create folder sections
     let html = `
             <div class="video-stats">
@@ -220,7 +246,77 @@ class VideoPlayer {
     }
 
     this.videoList.innerHTML = html;
+    this.videoList.className = 'video-grid';
+    this.addVideoClickListeners();
+  }
 
+  renderTreeView(data) {
+    // Create tree view with expandable folders
+    let html = `
+            <div class="video-stats">
+                <h3>📊 Library Stats</h3>
+                <p>Total Videos: ${data.totalCount} | Folders: ${Object.keys(data.videosByFolder).length}</p>
+            </div>
+            <div class="folder-tree">
+        `;
+
+    // Sort folders alphabetically, but put 'Root' first
+    const sortedFolders = Object.keys(data.videosByFolder).sort((a, b) => {
+      if (a === 'Root') return -1;
+      if (b === 'Root') return 1;
+      return a.localeCompare(b);
+    });
+
+    for (const folder of sortedFolders) {
+      const videos = data.videosByFolder[folder];
+      const folderIcon = folder === 'Root' ? '🏠' : '📁';
+      const isExpanded = this.expandedFolders.has(folder) || this.allExpanded;
+      const toggleIcon = isExpanded ? '▼' : '▶';
+
+      html += `
+                <div class="folder-item">
+                    <div class="folder-header ${isExpanded ? 'expanded' : ''}" data-folder="${folder}">
+                        <span class="folder-toggle ${isExpanded ? 'expanded' : ''}">${toggleIcon}</span>
+                        <span class="folder-icon">${folderIcon}</span>
+                        <span class="folder-name">${folder}</span>
+                        <span class="folder-count">(${videos.length} videos)</span>
+                    </div>
+                    <div class="folder-content ${isExpanded ? 'expanded' : ''}">
+                        <div class="folder-videos">
+                            ${videos.map(video => {
+        const resumeData = this.getResumeData(video.path);
+        const resumeIndicator = resumeData ?
+          `<div class="resume-indicator" title="Resume from ${resumeData.timeString}">
+                                        ▶️ ${resumeData.timeString} (${resumeData.progressPercent}%)
+                                    </div>` : '';
+
+        return `
+                                <div class="video-item ${resumeData ? 'has-resume' : ''}" data-video-path="${video.path}" data-video-name="${video.name}" data-video-relative="${video.relativePath}">
+                                    <div class="video-icon">🎬</div>
+                                    <div class="video-name">${this.escapeHtml(video.displayName)}</div>
+                                    <div class="video-details">
+                                        <div class="video-extension">${this.getFileExtension(video.name).toUpperCase()}</div>
+                                        <div class="video-size">${this.formatFileSize(video.size)}</div>
+                                    </div>
+                                    ${resumeIndicator}
+                                    <div class="video-path">${this.escapeHtml(video.relativePath)}</div>
+                                </div>
+                            `;
+      }).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+    }
+
+    html += '</div>';
+    this.videoList.innerHTML = html;
+    this.videoList.className = 'folder-tree-container';
+    this.addVideoClickListeners();
+    this.addFolderClickListeners();
+  }
+
+  addVideoClickListeners() {
     // Add click event listeners to video items
     this.videoList.querySelectorAll('.video-item').forEach(item => {
       item.addEventListener('click', () => {
@@ -230,6 +326,82 @@ class VideoPlayer {
         this.playVideo(videoPath, videoName, relativePath, item);
       });
     });
+  }
+
+  addFolderClickListeners() {
+    // Add click event listeners to folder headers
+    this.videoList.querySelectorAll('.folder-header').forEach(header => {
+      header.addEventListener('click', () => {
+        const folder = header.dataset.folder;
+        this.toggleFolder(folder);
+      });
+    });
+  }
+
+  toggleFolder(folder) {
+    if (this.expandedFolders.has(folder)) {
+      this.expandedFolders.delete(folder);
+    } else {
+      this.expandedFolders.add(folder);
+    }
+    this.renderVideoList(this.allData);
+  }
+
+  toggleView() {
+    this.isTreeView = !this.isTreeView;
+    this.toggleViewBtn.textContent = this.isTreeView ? '📋 Grid View' : '📁 Folder View';
+    this.renderVideoList(this.allData);
+  }
+
+  toggleExpandAll() {
+    this.allExpanded = !this.allExpanded;
+    this.toggleExpandBtn.textContent = this.allExpanded ? '📁 Collapse All' : '📂 Expand All';
+
+    if (this.allExpanded) {
+      // Add all folders to expanded set
+      Object.keys(this.allData.videosByFolder).forEach(folder => {
+        this.expandedFolders.add(folder);
+      });
+    } else {
+      // Clear expanded folders
+      this.expandedFolders.clear();
+    }
+
+    if (this.isTreeView) {
+      this.renderVideoList(this.allData);
+    }
+  }
+
+  handleSearch(searchTerm) {
+    if (!searchTerm.trim()) {
+      this.renderVideoList(this.allData);
+      return;
+    }
+
+    const filteredData = {
+      videos: [],
+      videosByFolder: {},
+      totalCount: 0
+    };
+
+    // Filter videos by search term
+    const searchLower = searchTerm.toLowerCase();
+
+    for (const [folder, videos] of Object.entries(this.allData.videosByFolder)) {
+      const filteredVideos = videos.filter(video =>
+        video.displayName.toLowerCase().includes(searchLower) ||
+        video.relativePath.toLowerCase().includes(searchLower) ||
+        folder.toLowerCase().includes(searchLower)
+      );
+
+      if (filteredVideos.length > 0) {
+        filteredData.videosByFolder[folder] = filteredVideos;
+        filteredData.videos.push(...filteredVideos);
+        filteredData.totalCount += filteredVideos.length;
+      }
+    }
+
+    this.renderVideoList(filteredData);
   }
 
   playVideo(videoPath, videoName, relativePath, itemElement) {
