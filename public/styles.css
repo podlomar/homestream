@@ -595,3 +595,143 @@ header p {
     font-size: 0.8em;
   }
 }
+
+/* Directory Status Styles */
+.directory-status {
+  margin-bottom: 25px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 15px;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.directory-status h3 {
+  margin-bottom: 15px;
+  color: #ffffff;
+  text-align: center;
+  font-size: 1.4em;
+}
+
+.directory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 15px;
+}
+
+.directory-item {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.directory-item:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-2px);
+}
+
+.directory-item.accessible {
+  background: rgba(76, 175, 80, 0.2);
+  border-left-color: #4CAF50;
+}
+
+.directory-item.not_found {
+  background: rgba(244, 67, 54, 0.2);
+  border-left-color: #f44336;
+}
+
+.directory-item.no_permission {
+  background: rgba(255, 152, 0, 0.2);
+  border-left-color: #ff9800;
+}
+
+.directory-item.io_error {
+  background: rgba(96, 125, 139, 0.2);
+  border-left-color: #607d8b;
+}
+
+.directory-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-weight: bold;
+}
+
+.directory-icon {
+  font-size: 1.2em;
+}
+
+.directory-name {
+  flex: 1;
+  font-size: 1.1em;
+}
+
+.video-count {
+  font-size: 0.9em;
+  opacity: 0.8;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.directory-path {
+  font-family: 'Courier New', monospace;
+  font-size: 0.85em;
+  opacity: 0.8;
+  margin-bottom: 5px;
+  word-break: break-all;
+}
+
+.directory-description {
+  font-size: 0.9em;
+  opacity: 0.7;
+  font-style: italic;
+}
+
+.directory-error {
+  color: #ffcdd2;
+  font-size: 0.85em;
+  margin-top: 8px;
+  padding: 8px;
+  background: rgba(244, 67, 54, 0.2);
+  border-radius: 5px;
+  border-left: 3px solid #f44336;
+}
+
+/* Directory Badge for folders */
+.directory-badge {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.8em;
+  margin-right: 8px;
+  font-weight: bold;
+}
+
+/* Mobile responsive for directory status */
+@media (max-width: 768px) {
+  .directory-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .directory-item {
+    padding: 12px;
+  }
+
+  .directory-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .video-count {
+    order: 3;
+    flex-basis: 100%;
+    text-align: right;
+    margin-top: 5px;
+  }
+}
