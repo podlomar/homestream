@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en" />
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <link rel="stylesheet" href="/styles.css" />
+  
+  <title>{{ title or "Home" }}</title>
+
+</head>
+<body>
+  <header>
+    <h1>{{ heading or "Welcome to HomeStream" }}</h1>
+  </header>
+  <main class="container">
+    <h2>{{ directory.name }}</h2>
+    <ul>
+      {% for child in directory.children %}
+        <li>
+          {% if child.type == "directory" %}
+            📁 <a href="{{ child.url }}">{{ child.name }}/</a>
+          {% else %}
+            🎬 <a href="{{ child.url }}">{{ child.name }}</a>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  </main>
+</body>
+</html>

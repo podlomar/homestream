@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en" />
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="/styles.css" />
+  <title>{{ title or "Home" }}</title>
+</head>
+<body>
+  <header>
+    <h1>{{ heading or "Welcome to HomeStream" }}</h1>
+  </header>
+  <main class="container">
+    <video id="videoPlayer" controls>
+      <source src="{{ videoSrc }}" />
+    </video>
+    <button id="fullscreenBtn">Go Fullscreen</button>
+    <script>
+      const video = document.getElementById('videoPlayer');
+      const btn = document.getElementById('fullscreenBtn');
+      btn.addEventListener('click', () => {
+        if (video.requestFullscreen) {
+          video.requestFullscreen();
+        } else if (video.webkitRequestFullscreen) {
+          video.webkitRequestFullscreen();
+        } else if (video.msRequestFullscreen) {
+          video.msRequestFullscreen();
+        }
+      });
+    </script>
+  </main>
+</body>
+</html>

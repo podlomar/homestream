@@ -1,38 +1,47 @@
 const express = require('express');
+const expressNunjucks = require('express-nunjucks').default;
 const fs = require('fs');
 const path = require('path');
 
 const app = express();
 const PORT = 3001;
 
-// Multiple video directories configuration
-// Add or modify these paths as needed
+app.set('views', 'templates');
+app.set('view engine', 'njk');
+app.use(express.static('public'));
+
+const isDev = app.get('env') === 'development';
+expressNunjucks(app, {
+  watch: isDev,
+  noCache: isDev,
+});
+
 const VIDEO_DIRECTORIES = [
   {
-    name: 'Main Videos',
+    name: 'Computer',
     path: '/home/podlomar/Videos',
-    description: 'Primary video collection'
+    mount: 'computer',
+    description: 'Computer video collection'
   },
   {
-    name: 'External Movies',
+    name: 'External Hard Drive',
     path: '/media/podlomar/Data/video',
+    mount: 'external',
     description: 'Movie collection (external drive)'
   },
   {
     name: 'SanDisk Archive',
     path: '/media/podlomar/SanDisk',
-    description: 'Archived videos (network storage)'
+    mount: 'sandisk',
+    description: 'Flash drive archive'
   }
 ];
 
-// Serve static files from public directory
-app.use(express.static('public'));
+const VIDEO_EXTENSIONS = [
+  '.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v'
+];
 
-// Supported video formats
-const VIDEO_EXTENSIONS = ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v'];
-
-// Check if a directory exists and is accessible
-function checkDirectoryStatus(dirPath) {
+const checkDirectoryStatus = (dirPath) => {
   try {
     if (!fs.existsSync(dirPath)) {
       return { status: 'not_found', error: 'Directory does not exist' };
@@ -60,118 +69,218 @@ function checkDirectoryStatus(dirPath) {
   }
 }
 
-// Recursively scan directory for videos
-function scanDirectoryForVideos(dirPath, basePath = '', directoryName = 'Root') {
-  const videos = [];
+const encodePath = (dirPath) => {
+  return encodeURIComponent(dirPath).replace(/%2F/g, '/');
+}
+
+const buildDirectoryTree = (dirPath, basePath = '/', directoryName = 'Root', maxDepth = 10, currentDepth = 0) => {
+  if (currentDepth >= maxDepth) {
+    return null;
+  }
 
   try {
     const items = fs.readdirSync(dirPath);
+    const tree = {
+      name: path.basename(dirPath) || directoryName,
+      path: dirPath,
+      relativePath: basePath,
+      type: 'directory',
+      children: [],
+      videoCount: 0,
+      directoryCount: 0
+    };
 
     for (const item of items) {
       const fullPath = path.join(dirPath, item);
       const relativePath = path.join(basePath, item);
-      const stat = fs.statSync(fullPath);
 
-      if (stat.isDirectory()) {
-        // Recursively scan subdirectories
-        const subVideos = scanDirectoryForVideos(fullPath, relativePath, directoryName);
-        videos.push(...subVideos);
-      } else if (stat.isFile()) {
-        const ext = path.extname(item).toLowerCase();
-        if (VIDEO_EXTENSIONS.includes(ext)) {
-          videos.push({
-            name: item,
-            displayName: path.parse(item).name,
-            path: `/video/${encodeURIComponent(`${directoryName}/${relativePath}`)}`,
-            relativePath: relativePath,
-            folder: basePath || directoryName,
-            directory: directoryName,
-            size: stat.size,
-            modified: stat.mtime
-          });
+      try {
+        const stat = fs.statSync(fullPath);
+
+        if (stat.isDirectory()) {
+          const subTree = buildDirectoryTree(fullPath, relativePath, directoryName, maxDepth, currentDepth + 1);
+          if (subTree) {
+            tree.children.push(subTree);
+            tree.directoryCount += 1 + subTree.directoryCount;
+            tree.videoCount += subTree.videoCount;
+          }
+        } else if (stat.isFile()) {
+          const ext = path.extname(item).toLowerCase();
+          if (VIDEO_EXTENSIONS.includes(ext)) {
+            tree.children.push({
+              name: item,
+              displayName: path.parse(item).name,
+              path: fullPath,
+              relativePath,
+              type: 'file',
+              size: stat.size,
+              modified: stat.mtime,
+              directory: directoryName
+            });
+            tree.videoCount += 1;
+          }
         }
+      } catch (itemError) {
+        console.error(`Error processing item ${fullPath}:`, itemError);
       }
     }
-  } catch (error) {
-    console.error(`Error scanning directory ${dirPath}:`, error);
-  }
 
-  return videos;
+    // Sort children: directories first, then files, both alphabetically
+    tree.children.sort((a, b) => {
+      if (a.type !== b.type) {
+        return a.type === 'directory' ? -1 : 1;
+      }
+      return a.name.localeCompare(b.name);
+    });
+
+    return tree;
+  } catch (error) {
+    console.error(`Error building directory tree for ${dirPath}:`, error);
+    return null;
+  }
 }
 
-// Get list of videos from all configured directories
-app.get('/api/videos', (req, res) => {
-  try {
-    const allVideos = [];
-    const directoryStatuses = [];
-    const videosByFolder = {};
+const buildDirectoryTreeForAll = (maxDepth = 10) => {
+  const directoryTrees = [];
 
-    // Scan each configured directory
-    for (const videoDir of VIDEO_DIRECTORIES) {
-      const status = checkDirectoryStatus(videoDir.path);
-
-      const dirInfo = {
-        name: videoDir.name,
-        path: videoDir.path,
-        description: videoDir.description,
-        status: status.status,
-        error: status.error,
-        videoCount: 0
-      };
-
-      if (status.status === 'accessible') {
-        try {
-          const videos = scanDirectoryForVideos(videoDir.path, '', videoDir.name);
-          allVideos.push(...videos);
-          dirInfo.videoCount = videos.length;
-
-          // Group videos by folder within this directory
-          videos.forEach(video => {
-            const folderKey = `${video.directory}/${video.folder}`;
-            if (!videosByFolder[folderKey]) {
-              videosByFolder[folderKey] = [];
-            }
-            videosByFolder[folderKey].push(video);
-          });
-        } catch (error) {
-          console.error(`Error scanning ${videoDir.name} (${videoDir.path}):`, error);
-          dirInfo.status = 'scan_error';
-          dirInfo.error = `Scan failed: ${error.message}`;
-        }
-      }
-
-      directoryStatuses.push(dirInfo);
+  for (const videoDir of VIDEO_DIRECTORIES) {
+    try {
+      const tree = buildDirectoryTree(videoDir.path, `/${videoDir.mount}`, videoDir.name, maxDepth);
+      directoryTrees.push(tree);
+    } catch (error) {
+      console.error(`Error building tree for ${videoDir.name} (${videoDir.path}):`, error);
+      dirInfo.status = 'tree_error';
+      dirInfo.error = `Tree build failed: ${error.message}`;
     }
-
-    res.json({
-      videos: allVideos,
-      videosByFolder: videosByFolder,
-      totalCount: allVideos.length,
-      directories: directoryStatuses
-    });
-  } catch (error) {
-    console.error('Error reading video directories:', error);
-    res.status(500).json({ error: 'Failed to read video directories' });
   }
+
+  return directoryTrees;
+};
+
+const findDirectoryByPath = (tree, path) => {
+  if (tree.relativePath === path) {
+    return tree;
+  }
+
+  for (const child of tree.children || []) {
+    if (path.startsWith(child.relativePath)) {
+      return findDirectoryByPath(child, path);
+    }
+  }
+
+  return null;
+};
+
+const root = {
+  name: 'Root',
+  path: '/',
+  relativePath: '/',
+  type: 'directory',
+  children: buildDirectoryTreeForAll(10)
+};
+
+app.get('/api/browse/', (req, res) => {
+  const data = {
+    ...root,
+    children: root.children.map(child => ({
+      ...child,
+      children: undefined,
+      url: `/api/browse${encodePath(child.relativePath)}`
+    }))
+  };
+
+  res.json(data);
 });
 
-// Stream video files
-app.get('/video/:directory/:filename(*)', (req, res) => {
-  const directory = decodeURIComponent(req.params.directory);
-  const filename = decodeURIComponent(req.params.filename);
+app.get('/api/trees', (req, res) => {
+  res.json(trees);
+});
 
-  // Find the directory configuration
-  const videoDir = VIDEO_DIRECTORIES.find(dir => dir.name === directory);
+// Browse a specific folder within a directory (non-recursive, immediate children only)
+app.get('/api/browse/:path(*)', (req, res) => {
+  const directoryPath = decodeURIComponent(req.params.path);
+  const dir = findDirectoryByPath(root, `/${directoryPath}`);
+  if (!dir) {
+    return res.status(404).json({ error: 'Directory not found' });
+  }
+
+  const data = {
+    ...dir,
+    children: dir.children.map(child => ({
+      ...child,
+      children: undefined,
+      url: `/api/browse${encodePath(child.relativePath)}`
+    }))
+  };
+
+  res.json(data);
+});
+
+app.get('/', (req, res) => {
+  const directory = {
+    ...root,
+    children: root.children.map(child => ({
+      ...child,
+      children: undefined,
+      url: child.type === 'directory'
+        ? `/browse${child.relativePath}`
+        : `/video${child.relativePath}`
+    }))
+  };
+
+  res.render('index.njk', {
+    title: 'Video Streaming Server',
+    directory,
+  });
+});
+
+app.get('/browse/:path(*)', (req, res) => {
+  const directoryPath = decodeURIComponent(req.params.path);
+  const dir = findDirectoryByPath(root, `/${directoryPath}`);
+  if (!dir) {
+    return res.status(404).json({ error: 'Directory not found' });
+  }
+
+
+  const directory = {
+    ...dir,
+    children: dir.children.map(child => ({
+      ...child,
+      children: undefined,
+      url: child.type === 'directory'
+        ? `/browse${child.relativePath}`
+        : `/video${child.relativePath}`
+    }))
+  };
+
+  res.render('index.njk', {
+    title: `Browsing ${directoryPath}`,
+    directory,
+  });
+});
+
+app.get('/video/:path(*)', (req, res) => {
+  const directoryPath = decodeURIComponent(req.params.path);
+  const dir = findDirectoryByPath(root, `/${directoryPath}`);
+  if (!dir) {
+    return res.status(404).json({ error: 'Directory not found' });
+  }
+
+  res.render('video.njk', {
+    title: `Browsing ${directoryPath}`,
+    videoSrc: `/stream/${directoryPath}`,
+  });
+});
+
+app.get('/stream/:path(*)', (req, res) => {
+  const videoDir = findDirectoryByPath(root, `/${req.params.path}`);
   if (!videoDir) {
     return res.status(404).json({ error: 'Video directory not found' });
   }
 
-  const videoPath = path.join(videoDir.path, filename);
+  const videoPath = decodeURIComponent(videoDir.path);
 
-  // Security check - ensure the file is within the configured directory
-  if (!videoPath.startsWith(videoDir.path)) {
-    return res.status(403).json({ error: 'Access denied' });
-  }
+  console.log(`Streaming video from: ${videoPath}`);
 
   // Check if file exists
   if (!fs.existsSync(videoPath)) {
@@ -183,7 +292,7 @@ app.get('/video/:directory/:filename(*)', (req, res) => {
   const range = req.headers.range;
 
   // Get the correct MIME type based on file extension
-  const ext = path.extname(filename).toLowerCase();
+  const ext = path.extname(videoPath).toLowerCase();
   const mimeTypes = {
     '.mp4': 'video/mp4',
     '.avi': 'video/x-msvideo',
@@ -222,11 +331,6 @@ app.get('/video/:directory/:filename(*)', (req, res) => {
   }
 });
 
-// Serve the main page
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Video streaming server running on http://localhost:${PORT}`);
@@ -241,16 +345,5 @@ app.listen(PORT, '0.0.0.0', () => {
     }
   });
 
-  console.log(`Server accessible on local network at http://[your-ip]:${PORT}`);
-
-  // Try to get local IP
-  const { networkInterfaces } = require('os');
-  const nets = networkInterfaces();
-  for (const name of Object.keys(nets)) {
-    for (const net of nets[name]) {
-      if (net.family === 'IPv4' && !net.internal) {
-        console.log(`Try: http://${net.address}:${PORT}`);
-      }
-    }
-  }
+  console.log(`Server listening on port ${PORT}`);
 });

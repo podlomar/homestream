@@ -37,6 +37,11 @@ header p {
   opacity: 0.9;
 }
 
+a,
+a:visited {
+  color: white;
+}
+
 .video-player-section {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 15px;
@@ -48,9 +53,7 @@ header p {
 
 #videoPlayer {
   width: 100%;
-  height: 85vh;
-  max-height: 85vh;
-  min-height: 250px;
+  aspect-ratio: 16 / 9;
   border-radius: 10px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   object-fit: contain;
