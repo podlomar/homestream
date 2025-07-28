@@ -10,22 +10,54 @@
 
 </head>
 <body>
+  <svg style="display: none;">
+    <symbol
+      id="icon-folder"
+      width="100%"
+      height="100%"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path d="M13 7L11.8845 4.76892C11.5634 4.1268 11.4029 3.80573 11.1634 3.57116C10.9516 3.36373 10.6963 3.20597 10.4161 3.10931C10.0992 3 9.74021 3 9.02229 3H5.2C4.0799 3 3.51984 3 3.09202 3.21799C2.71569 3.40973 2.40973 3.71569 2.21799 4.09202C2 4.51984 2 5.0799 2 6.2V7M2 7H17.2C18.8802 7 19.7202 7 20.362 7.32698C20.9265 7.6146 21.3854 8.07354 21.673 8.63803C22 9.27976 22 10.1198 22 11.8V16.2C22 17.8802 22 18.7202 21.673 19.362C21.3854 19.9265 20.9265 20.3854 20.362 20.673C19.7202 21 18.8802 21 17.2 21H6.8C5.11984 21 4.27976 21 3.63803 20.673C3.07354 20.3854 2.6146 19.9265 2.32698 19.362C2 18.7202 2 17.8802 2 16.2V7Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    </symbol>
+
+    <symbol
+      id="icon-movie"
+      width="100%"
+      height="100%"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path d="M7 2V6M7 16V20M17 4V8M17 18V22M2 6H12M2 16H12M12 8H22M12 18H22M12 20V3.6C12 3.03995 12 2.75992 11.891 2.54601C11.7951 2.35785 11.6422 2.20487 11.454 2.10899C11.2401 2 10.9601 2 10.4 2H6.8C5.11984 2 4.27976 2 3.63803 2.32698C3.07354 2.6146 2.6146 3.07354 2.32698 3.63803C2 4.27976 2 5.11984 2 6.8V15.2C2 16.8802 2 17.7202 2.32698 18.362C2.6146 18.9265 3.07354 19.3854 3.63803 19.673C4.27976 20 5.11984 20 6.8 20H12ZM12 4H17.2C18.8802 4 19.7202 4 20.362 4.32698C20.9265 4.6146 21.3854 5.07354 21.673 5.63803C22 6.27976 22 7.11984 22 8.8V17.2C22 18.8802 22 19.7202 21.673 20.362C21.3854 20.9265 20.9265 21.3854 20.362 21.673C19.7202 22 18.8802 22 17.2 22H13.6C13.0399 22 12.7599 22 12.546 21.891C12.3578 21.7951 12.2049 21.6422 12.109 21.454C12 21.2401 12 20.9601 12 20.4V4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+  </svg>
+
   <header>
     <h1>{{ heading or "Welcome to HomeStream" }}</h1>
   </header>
   <main class="container">
     <h2>{{ directory.name }}</h2>
-    <ul>
-      {% for child in directory.children %}
-        <li>
-          {% if child.type == "directory" %}
-            📁 <a href="{{ child.url }}">{{ child.name }}/</a>
-          {% else %}
-            🎬 <a href="{{ child.url }}">{{ child.name }}</a>
-          {% endif %}
-        </li>
-      {% endfor %}
-    </ul>
+    <div class="folder">
+    {% for child in directory.children %}
+      {% if child.type == "directory" %}
+        <a class="folderItem" href="{{ child.url }}">
+          <svg class="itemIcon" width="32" height="32">
+            <use href="#icon-folder"></use>
+          </svg>
+          <span>{{ child.name }}</span>
+        </a>
+      {% else %}
+        <a class="folderItem" href="{{ child.url }}">
+          <svg class="itemIcon" width="32" height="32">
+            <use href="#icon-movie"></use>
+          </svg>
+          <span>{{ child.name }}</span>
+        </a>
+      {% endif %}
+    {% endfor %}
+    </div>
   </main>
 </body>
 </html>
