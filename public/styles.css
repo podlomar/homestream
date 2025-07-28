@@ -6,9 +6,9 @@
 
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+  background: #080534 linear-gradient(160deg, #0a026c 0%, #06042a 100%);
   color: #ffffff;
-  min-height: 100vh;
+  min-height: 100dvh;
   /* Improve touch scrolling on mobile */
   -webkit-overflow-scrolling: touch;
   /* Prevent zoom on double tap */
