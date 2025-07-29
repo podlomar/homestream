@@ -1,7 +1,7 @@
-const express = require('express');
-const expressNunjucks = require('express-nunjucks').default;
-const fs = require('fs');
-const path = require('path');
+import express from 'express';
+import expressNunjucks from 'express-nunjucks';
+import fs from 'node:fs';
+import path from 'node:path';
 
 const app = express();
 const PORT = 3001;
