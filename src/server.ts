@@ -2,6 +2,7 @@ import express from 'express';
 import expressNunjucks from 'express-nunjucks';
 import fs from 'node:fs';
 import path from 'node:path';
+import { buildRootTree, findTreeItemByPath, TopLevelDirectory } from './tree.js';
 
 const app = express();
 const PORT = 3001;
@@ -11,12 +12,14 @@ app.set('view engine', 'njk');
 app.use(express.static('public'));
 
 const isDev = app.get('env') === 'development';
+
+// @ts-expect-error
 expressNunjucks(app, {
   watch: isDev,
   noCache: isDev,
 });
 
-const VIDEO_DIRECTORIES = [
+const videoDirectories: TopLevelDirectory[] = [
   {
     name: 'Computer',
     path: '/home/podlomar/Videos',
@@ -37,11 +40,12 @@ const VIDEO_DIRECTORIES = [
   }
 ];
 
-const VIDEO_EXTENSIONS = [
-  '.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v'
-];
+interface DirectoryStatus {
+  status: 'accessible' | 'not_found' | 'not_directory' | 'no_permission' | 'io_error' | 'error';
+  error?: string;
+}
 
-const checkDirectoryStatus = (dirPath) => {
+const checkDirectoryStatus = (dirPath: string): DirectoryStatus => {
   try {
     if (!fs.existsSync(dirPath)) {
       return { status: 'not_found', error: 'Directory does not exist' };
@@ -55,7 +59,8 @@ const checkDirectoryStatus = (dirPath) => {
     // Test read access
     fs.readdirSync(dirPath);
     return { status: 'accessible' };
-  } catch (error) {
+  } catch (e) {
+    const error = e as NodeJS.ErrnoException;
     if (error.code === 'EACCES') {
       return { status: 'no_permission', error: 'Permission denied' };
     } else if (error.code === 'ENOTDIR') {
@@ -69,152 +74,11 @@ const checkDirectoryStatus = (dirPath) => {
   }
 }
 
-const encodePath = (dirPath) => {
-  return encodeURIComponent(dirPath).replace(/%2F/g, '/');
-}
+// const encodePath = (dirPath: string): string => {
+//   return encodeURIComponent(dirPath).replace(/%2F/g, '/');
+// }
 
-const buildDirectoryTree = (dirPath, basePath = '/', directoryName = 'Root', maxDepth = 10, currentDepth = 0) => {
-  if (currentDepth >= maxDepth) {
-    return null;
-  }
-
-  try {
-    const items = fs.readdirSync(dirPath);
-    const tree = {
-      name: path.basename(dirPath) || directoryName,
-      path: dirPath,
-      relativePath: basePath,
-      type: 'directory',
-      children: [],
-      videoCount: 0,
-      directoryCount: 0
-    };
-
-    for (const item of items) {
-      const fullPath = path.join(dirPath, item);
-      const relativePath = path.join(basePath, item);
-
-      try {
-        const stat = fs.statSync(fullPath);
-
-        if (stat.isDirectory()) {
-          const subTree = buildDirectoryTree(fullPath, relativePath, directoryName, maxDepth, currentDepth + 1);
-          if (subTree) {
-            tree.children.push(subTree);
-            tree.directoryCount += 1 + subTree.directoryCount;
-            tree.videoCount += subTree.videoCount;
-          }
-        } else if (stat.isFile()) {
-          const ext = path.extname(item).toLowerCase();
-          if (VIDEO_EXTENSIONS.includes(ext)) {
-            tree.children.push({
-              name: item,
-              displayName: path.parse(item).name,
-              path: fullPath,
-              relativePath,
-              type: 'file',
-              size: stat.size,
-              modified: stat.mtime,
-              directory: directoryName
-            });
-            tree.videoCount += 1;
-          }
-        }
-      } catch (itemError) {
-        console.error(`Error processing item ${fullPath}:`, itemError);
-      }
-    }
-
-    // Sort children: directories first, then files, both alphabetically
-    tree.children.sort((a, b) => {
-      if (a.type !== b.type) {
-        return a.type === 'directory' ? -1 : 1;
-      }
-      return a.name.localeCompare(b.name);
-    });
-
-    return tree;
-  } catch (error) {
-    console.error(`Error building directory tree for ${dirPath}:`, error);
-    return null;
-  }
-}
-
-const buildDirectoryTreeForAll = (maxDepth = 10) => {
-  const directoryTrees = [];
-
-  for (const videoDir of VIDEO_DIRECTORIES) {
-    try {
-      const tree = buildDirectoryTree(videoDir.path, `/${videoDir.mount}`, videoDir.name, maxDepth);
-      directoryTrees.push(tree);
-    } catch (error) {
-      console.error(`Error building tree for ${videoDir.name} (${videoDir.path}):`, error);
-      dirInfo.status = 'tree_error';
-      dirInfo.error = `Tree build failed: ${error.message}`;
-    }
-  }
-
-  return directoryTrees;
-};
-
-const findDirectoryByPath = (tree, path) => {
-  if (tree.relativePath === path) {
-    return tree;
-  }
-
-  for (const child of tree.children || []) {
-    if (path.startsWith(child.relativePath)) {
-      return findDirectoryByPath(child, path);
-    }
-  }
-
-  return null;
-};
-
-const root = {
-  name: 'Root',
-  path: '/',
-  relativePath: '/',
-  type: 'directory',
-  children: buildDirectoryTreeForAll(10)
-};
-
-app.get('/api/browse/', (req, res) => {
-  const data = {
-    ...root,
-    children: root.children.map(child => ({
-      ...child,
-      children: undefined,
-      url: `/api/browse${encodePath(child.relativePath)}`
-    }))
-  };
-
-  res.json(data);
-});
-
-app.get('/api/trees', (req, res) => {
-  res.json(trees);
-});
-
-// Browse a specific folder within a directory (non-recursive, immediate children only)
-app.get('/api/browse/:path(*)', (req, res) => {
-  const directoryPath = decodeURIComponent(req.params.path);
-  const dir = findDirectoryByPath(root, `/${directoryPath}`);
-  if (!dir) {
-    return res.status(404).json({ error: 'Directory not found' });
-  }
-
-  const data = {
-    ...dir,
-    children: dir.children.map(child => ({
-      ...child,
-      children: undefined,
-      url: `/api/browse${encodePath(child.relativePath)}`
-    }))
-  };
-
-  res.json(data);
-});
+const root = buildRootTree(videoDirectories, 10);
 
 app.get('/', (req, res) => {
   const directory = {
@@ -236,11 +100,14 @@ app.get('/', (req, res) => {
 
 app.get('/browse/:path(*)', (req, res) => {
   const directoryPath = decodeURIComponent(req.params.path);
-  const dir = findDirectoryByPath(root, `/${directoryPath}`);
-  if (!dir) {
+  const dir = findTreeItemByPath(root, `/${directoryPath}`);
+  if (dir === null) {
     return res.status(404).json({ error: 'Directory not found' });
   }
 
+  if (dir.type !== 'directory') {
+    return res.status(400).json({ error: 'Path is not a directory' });
+  }
 
   const directory = {
     ...dir,
@@ -261,9 +128,12 @@ app.get('/browse/:path(*)', (req, res) => {
 
 app.get('/video/:path(*)', (req, res) => {
   const directoryPath = decodeURIComponent(req.params.path);
-  const dir = findDirectoryByPath(root, `/${directoryPath}`);
-  if (!dir) {
-    return res.status(404).json({ error: 'Directory not found' });
+  const videoItem = findTreeItemByPath(root, `/${directoryPath}`);
+  console.log(`Looking for video at: ${directoryPath}`);
+  console.log(`Found video item:`, videoItem);
+
+  if (videoItem === null || videoItem.type !== 'file') {
+    return res.status(404).json({ error: 'Video not found' });
   }
 
   res.render('video.njk', {
@@ -273,14 +143,14 @@ app.get('/video/:path(*)', (req, res) => {
 });
 
 app.get('/stream/:path(*)', (req, res) => {
-  const videoDir = findDirectoryByPath(root, `/${req.params.path}`);
-  if (!videoDir) {
-    return res.status(404).json({ error: 'Video directory not found' });
+  const videoFile = findTreeItemByPath(root, `/${req.params.path}`);
+  if (videoFile === null || videoFile.type !== 'file') {
+    return res.status(404).json({ error: 'Video not found' });
   }
 
-  const videoPath = decodeURIComponent(videoDir.path);
+  const videoPath = decodeURIComponent(videoFile.path);
 
-  console.log(`Streaming video from: ${videoPath}`);
+  // console.log(`Streaming video from: ${videoPath}`);
 
   // Check if file exists
   if (!fs.existsSync(videoPath)) {
@@ -293,7 +163,7 @@ app.get('/stream/:path(*)', (req, res) => {
 
   // Get the correct MIME type based on file extension
   const ext = path.extname(videoPath).toLowerCase();
-  const mimeTypes = {
+  const mimeTypes: { [key in string]?: string } = {
     '.mp4': 'video/mp4',
     '.avi': 'video/x-msvideo',
     '.mkv': 'video/x-matroska',
@@ -303,7 +173,8 @@ app.get('/stream/:path(*)', (req, res) => {
     '.webm': 'video/webm',
     '.m4v': 'video/mp4'
   };
-  const contentType = mimeTypes[ext] || 'video/mp4';
+
+  const contentType = mimeTypes[ext] ?? 'video/mp4';
 
   if (range) {
     // Support for video seeking with range requests
@@ -336,7 +207,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`Video streaming server running on http://localhost:${PORT}`);
   console.log(`Configured video directories:`);
 
-  VIDEO_DIRECTORIES.forEach(dir => {
+  videoDirectories.forEach(dir => {
     const status = checkDirectoryStatus(dir.path);
     const statusEmoji = status.status === 'accessible' ? '✅' : '❌';
     console.log(`  ${statusEmoji} ${dir.name}: ${dir.path} (${dir.description})`);

@@ -5,9 +5,11 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "dev": "node --watch server.js"
+    "dev": "tsc --watch",
+    "start": "node --watch dist/server.js"
   },
   "dependencies": {
+    "@types/express": "^5.0.3",
     "express": "^4.18.2",
     "express-nunjucks": "^3.1.2",
     "nunjucks": "^3.2.4"
@@ -19,5 +21,9 @@
     "nodejs"
   ],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^24.1.0",
+    "typescript": "^5.8.3"
+  }
 }
