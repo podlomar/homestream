@@ -74,10 +74,6 @@ const checkDirectoryStatus = (dirPath: string): DirectoryStatus => {
   }
 }
 
-// const encodePath = (dirPath: string): string => {
-//   return encodeURIComponent(dirPath).replace(/%2F/g, '/');
-// }
-
 const root = buildRootTree(videoDirectories, 10);
 
 app.get('/', (req, res) => {
@@ -149,10 +145,6 @@ app.get('/stream/:path(*)', (req, res) => {
   }
 
   const videoPath = decodeURIComponent(videoFile.path);
-
-  // console.log(`Streaming video from: ${videoPath}`);
-
-  // Check if file exists
   if (!fs.existsSync(videoPath)) {
     return res.status(404).json({ error: 'Video not found' });
   }
@@ -161,7 +153,6 @@ app.get('/stream/:path(*)', (req, res) => {
   const fileSize = stat.size;
   const range = req.headers.range;
 
-  // Get the correct MIME type based on file extension
   const ext = path.extname(videoPath).toLowerCase();
   const mimeTypes: { [key in string]?: string } = {
     '.mp4': 'video/mp4',
@@ -202,7 +193,6 @@ app.get('/stream/:path(*)', (req, res) => {
   }
 });
 
-// Start server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Video streaming server running on http://localhost:${PORT}`);
   console.log(`Configured video directories:`);
