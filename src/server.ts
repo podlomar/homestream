@@ -21,21 +21,21 @@ expressNunjucks(app, {
 
 const videoDirectories: TopLevelDirectory[] = [
   {
-    name: 'Computer',
-    path: '/home/podlomar/Videos',
-    mount: 'computer',
+    displayName: 'Computer',
+    systemPath: '/home/podlomar/Videos',
+    mountPoint: 'computer',
     description: 'Computer video collection'
   },
   {
-    name: 'External Hard Drive',
-    path: '/media/podlomar/Data/video',
-    mount: 'external',
+    displayName: 'External Hard Drive',
+    systemPath: '/media/podlomar/Data/video',
+    mountPoint: 'external',
     description: 'Movie collection (external drive)'
   },
   {
-    name: 'SanDisk Archive',
-    path: '/media/podlomar/SanDisk',
-    mount: 'sandisk',
+    displayName: 'SanDisk Archive',
+    systemPath: '/media/podlomar/SanDisk',
+    mountPoint: 'sandisk',
     description: 'Flash drive archive'
   }
 ];
@@ -83,8 +83,8 @@ app.get('/', (req, res) => {
       ...child,
       children: undefined,
       url: child.type === 'directory'
-        ? `/browse${child.relativePath}`
-        : `/video${child.relativePath}`
+        ? `/browse${child.contentPath}`
+        : `/video${child.contentPath}`
     }))
   };
 
@@ -111,8 +111,8 @@ app.get('/browse/:path(*)', (req, res) => {
       ...child,
       children: undefined,
       url: child.type === 'directory'
-        ? `/browse${child.relativePath}`
-        : `/video${child.relativePath}`
+        ? `/browse${child.contentPath}`
+        : `/video${child.contentPath}`
     }))
   };
 
@@ -125,8 +125,6 @@ app.get('/browse/:path(*)', (req, res) => {
 app.get('/video/:path(*)', (req, res) => {
   const directoryPath = decodeURIComponent(req.params.path);
   const videoItem = findTreeItemByPath(root, `/${directoryPath}`);
-  console.log(`Looking for video at: ${directoryPath}`);
-  console.log(`Found video item:`, videoItem);
 
   if (videoItem === null || videoItem.type !== 'file') {
     return res.status(404).json({ error: 'Video not found' });
@@ -144,7 +142,7 @@ app.get('/stream/:path(*)', (req, res) => {
     return res.status(404).json({ error: 'Video not found' });
   }
 
-  const videoPath = decodeURIComponent(videoFile.path);
+  const videoPath = decodeURIComponent(videoFile.systemPath);
   if (!fs.existsSync(videoPath)) {
     return res.status(404).json({ error: 'Video not found' });
   }
@@ -198,9 +196,9 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`Configured video directories:`);
 
   videoDirectories.forEach(dir => {
-    const status = checkDirectoryStatus(dir.path);
+    const status = checkDirectoryStatus(dir.systemPath);
     const statusEmoji = status.status === 'accessible' ? '✅' : '❌';
-    console.log(`  ${statusEmoji} ${dir.name}: ${dir.path} (${dir.description})`);
+    console.log(`  ${statusEmoji} ${dir.displayName}: ${dir.systemPath} (${dir.description})`);
     if (status.status !== 'accessible') {
       console.log(`    Error: ${status.error}`);
     }

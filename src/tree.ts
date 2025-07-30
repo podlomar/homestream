@@ -2,10 +2,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 interface BaseTreeItem {
-  name: string;
+  fileName: string;
   displayName: string;
-  path: string;
-  relativePath: string;
+  systemPath: string;
+  contentPath: string;
 }
 
 export interface Directory extends BaseTreeItem {
@@ -18,7 +18,6 @@ export interface VideoFile extends BaseTreeItem {
   type: 'file';
   size: number;
   modified: Date;
-  directory: string;
 }
 
 export type TreeItem = Directory | VideoFile;
@@ -28,16 +27,16 @@ const videoExtensions = [
 ];
 
 export interface TopLevelDirectory {
-  name: string;
-  path: string;
-  mount: string;
+  displayName: string;
+  systemPath: string;
+  mountPoint: string;
   description: string;
 }
 
 const buildDirectoryTree = (
   dirPath: string,
-  basePath: string = '/',
-  directoryName: string = 'Root',
+  basePath: string,
+  displayName: string | null,
   maxDepth: number = 10,
   currentDepth: number = 0
 ): Directory | null => {
@@ -47,12 +46,13 @@ const buildDirectoryTree = (
 
   try {
     const items = fs.readdirSync(dirPath);
+    const fileName = path.basename(dirPath);
     const directory: Directory = {
       type: 'directory',
-      name: path.basename(dirPath) || directoryName,
-      displayName: directoryName,
-      path: dirPath,
-      relativePath: basePath,
+      fileName,
+      displayName: displayName ?? fileName,
+      systemPath: dirPath,
+      contentPath: basePath,
       children: [],
       videoCount: 0,
     };
@@ -66,7 +66,7 @@ const buildDirectoryTree = (
 
         if (stat.isDirectory()) {
           const subDirectory = buildDirectoryTree(
-            fullPath, relativePath, directoryName, maxDepth, currentDepth + 1
+            fullPath, relativePath, null, maxDepth, currentDepth + 1
           );
           if (subDirectory !== null) {
             directory.children.push(subDirectory);
@@ -76,14 +76,13 @@ const buildDirectoryTree = (
           const ext = path.extname(item).toLowerCase();
           if (videoExtensions.includes(ext)) {
             directory.children.push({
-              name: item,
+              fileName: item,
               displayName: path.parse(item).name,
-              path: fullPath,
-              relativePath,
+              systemPath: fullPath,
+              contentPath: relativePath,
               type: 'file',
               size: stat.size,
               modified: stat.mtime,
-              directory: directoryName
             });
             directory.videoCount += 1;
           }
@@ -98,7 +97,7 @@ const buildDirectoryTree = (
       if (a.type !== b.type) {
         return a.type === 'directory' ? -1 : 1;
       }
-      return a.name.localeCompare(b.name);
+      return a.fileName.localeCompare(b.fileName);
     });
 
     return directory;
@@ -111,23 +110,23 @@ const buildDirectoryTree = (
 export const buildRootTree = (topDirectories: TopLevelDirectory[], maxDepth: number = 10): Directory => {
   const root: Directory = {
     type: 'directory',
-    name: 'Root',
+    fileName: 'Root',
     displayName: 'Root',
-    path: '/',
-    relativePath: '/',
+    systemPath: '/',
+    contentPath: '/',
     videoCount: 0,
     children: [] as TreeItem[],
   };
 
   for (const videoDir of topDirectories) {
     try {
-      const tree = buildDirectoryTree(videoDir.path, `/${videoDir.mount}`, videoDir.name, maxDepth);
+      const tree = buildDirectoryTree(videoDir.systemPath, `/${videoDir.mountPoint}`, videoDir.displayName, maxDepth);
       if (tree !== null) {
         root.children.push(tree);
         root.videoCount += tree.videoCount;
       }
     } catch (error) {
-      console.error(`Error building tree for ${videoDir.name} (${videoDir.path}):`, error);
+      console.error(`Error building tree for ${videoDir.displayName} (${videoDir.systemPath}):`, error);
     }
   }
 
@@ -135,7 +134,7 @@ export const buildRootTree = (topDirectories: TopLevelDirectory[], maxDepth: num
 };
 
 export const findTreeItemByPath = (tree: TreeItem, path: string): TreeItem | null => {
-  if (tree.relativePath === path) {
+  if (tree.contentPath === path) {
     return tree;
   }
 
@@ -144,7 +143,7 @@ export const findTreeItemByPath = (tree: TreeItem, path: string): TreeItem | nul
   }
 
   for (const child of tree.children) {
-    if (path.startsWith(child.relativePath)) {
+    if (path.startsWith(child.contentPath)) {
       return findTreeItemByPath(child, path);
     }
   }

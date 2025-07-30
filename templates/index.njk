@@ -46,14 +46,14 @@
           <svg class="itemIcon" width="32" height="32">
             <use href="#icon-folder"></use>
           </svg>
-          <span>{{ child.name }}</span>
+          <span>{{ child.displayName }}</span>
         </a>
       {% else %}
         <a class="folderItem" href="{{ child.url }}">
           <svg class="itemIcon" width="32" height="32">
             <use href="#icon-movie"></use>
           </svg>
-          <span>{{ child.name }}</span>
+          <span>{{ child.displayName }}</span>
         </a>
       {% endif %}
     {% endfor %}
