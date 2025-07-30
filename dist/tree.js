@@ -1,8 +1,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
-const videoExtensions = [
-    '.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v'
-];
+const videoExtensions = ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v'];
+const sortTreeItems = (items) => {
+    items.sort((a, b) => {
+        if (a.type !== b.type) {
+            return a.type === 'directory' ? -1 : 1;
+        }
+        return a.fileName.localeCompare(b.fileName);
+    });
+};
 const buildDirectoryTree = (dirPath, basePath, displayName, maxDepth = 10, currentDepth = 0) => {
     if (currentDepth >= maxDepth) {
         return null;
@@ -51,13 +57,7 @@ const buildDirectoryTree = (dirPath, basePath, displayName, maxDepth = 10, curre
                 console.error(`Error processing item ${fullPath}:`, itemError);
             }
         }
-        // Sort children: directories first, then files, both alphabetically
-        directory.children.sort((a, b) => {
-            if (a.type !== b.type) {
-                return a.type === 'directory' ? -1 : 1;
-            }
-            return a.fileName.localeCompare(b.fileName);
-        });
+        sortTreeItems(directory.children);
         return directory;
     }
     catch (error) {

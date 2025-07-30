@@ -1,7 +1,7 @@
-import express from 'express';
-import expressNunjucks from 'express-nunjucks';
 import fs from 'node:fs';
 import path from 'node:path';
+import express from 'express';
+import expressNunjucks from 'express-nunjucks';
 import { buildRootTree, findTreeItemByPath } from './tree.js';
 const app = express();
 const PORT = 3001;
@@ -19,20 +19,20 @@ const videoDirectories = [
         displayName: 'Computer',
         systemPath: '/home/podlomar/Videos',
         mountPoint: 'computer',
-        description: 'Computer video collection'
+        description: 'Computer video collection',
     },
     {
         displayName: 'External Hard Drive',
         systemPath: '/media/podlomar/Data/video',
         mountPoint: 'external',
-        description: 'Movie collection (external drive)'
+        description: 'Movie collection (external drive)',
     },
     {
         displayName: 'SanDisk Archive',
         systemPath: '/media/podlomar/SanDisk',
         mountPoint: 'sandisk',
-        description: 'Flash drive archive'
-    }
+        description: 'Flash drive archive',
+    },
 ];
 const checkDirectoryStatus = (dirPath) => {
     try {
@@ -65,16 +65,14 @@ const checkDirectoryStatus = (dirPath) => {
     }
 };
 const root = buildRootTree(videoDirectories, 10);
-app.get('/', (req, res) => {
+app.get('/', (_req, res) => {
     const directory = {
         ...root,
-        children: root.children.map(child => ({
+        children: root.children.map((child) => ({
             ...child,
             children: undefined,
-            url: child.type === 'directory'
-                ? `/browse${child.contentPath}`
-                : `/video${child.contentPath}`
-        }))
+            url: child.type === 'directory' ? `/browse${child.contentPath}` : `/video${child.contentPath}`,
+        })),
     };
     res.render('index.njk', {
         title: 'Video Streaming Server',
@@ -92,13 +90,11 @@ app.get('/browse/:path(*)', (req, res) => {
     }
     const directory = {
         ...dir,
-        children: dir.children.map(child => ({
+        children: dir.children.map((child) => ({
             ...child,
             children: undefined,
-            url: child.type === 'directory'
-                ? `/browse${child.contentPath}`
-                : `/video${child.contentPath}`
-        }))
+            url: child.type === 'directory' ? `/browse${child.contentPath}` : `/video${child.contentPath}`,
+        })),
     };
     res.render('index.njk', {
         title: `Browsing ${directoryPath}`,
@@ -137,15 +133,15 @@ app.get('/stream/:path(*)', (req, res) => {
         '.wmv': 'video/x-ms-wmv',
         '.flv': 'video/x-flv',
         '.webm': 'video/webm',
-        '.m4v': 'video/mp4'
+        '.m4v': 'video/mp4',
     };
     const contentType = mimeTypes[ext] ?? 'video/mp4';
     if (range) {
         // Support for video seeking with range requests
-        const parts = range.replace(/bytes=/, "").split("-");
+        const parts = range.replace(/bytes=/, '').split('-');
         const start = parseInt(parts[0], 10);
         const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-        const chunksize = (end - start) + 1;
+        const chunksize = end - start + 1;
         const file = fs.createReadStream(videoPath, { start, end });
         const head = {
             'Content-Range': `bytes ${start}-${end}/${fileSize}`,
@@ -169,7 +165,7 @@ app.get('/stream/:path(*)', (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Video streaming server running on http://localhost:${PORT}`);
     console.log(`Configured video directories:`);
-    videoDirectories.forEach(dir => {
+    videoDirectories.forEach((dir) => {
         const status = checkDirectoryStatus(dir.systemPath);
         const statusEmoji = status.status === 'accessible' ? '✅' : '❌';
         console.log(`  ${statusEmoji} ${dir.displayName}: ${dir.systemPath} (${dir.description})`);

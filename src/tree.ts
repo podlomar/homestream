@@ -22,9 +22,7 @@ export interface VideoFile extends BaseTreeItem {
 
 export type TreeItem = Directory | VideoFile;
 
-const videoExtensions = [
-  '.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v'
-];
+const videoExtensions = ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v'];
 
 export interface TopLevelDirectory {
   displayName: string;
@@ -32,6 +30,15 @@ export interface TopLevelDirectory {
   mountPoint: string;
   description: string;
 }
+
+const sortTreeItems = (items: TreeItem[]): void => {
+  items.sort((a, b) => {
+    if (a.type !== b.type) {
+      return a.type === 'directory' ? -1 : 1;
+    }
+    return a.fileName.localeCompare(b.fileName);
+  });
+};
 
 const buildDirectoryTree = (
   dirPath: string,
@@ -66,7 +73,11 @@ const buildDirectoryTree = (
 
         if (stat.isDirectory()) {
           const subDirectory = buildDirectoryTree(
-            fullPath, relativePath, null, maxDepth, currentDepth + 1
+            fullPath,
+            relativePath,
+            null,
+            maxDepth,
+            currentDepth + 1
           );
           if (subDirectory !== null) {
             directory.children.push(subDirectory);
@@ -92,22 +103,19 @@ const buildDirectoryTree = (
       }
     }
 
-    // Sort children: directories first, then files, both alphabetically
-    directory.children.sort((a, b) => {
-      if (a.type !== b.type) {
-        return a.type === 'directory' ? -1 : 1;
-      }
-      return a.fileName.localeCompare(b.fileName);
-    });
+    sortTreeItems(directory.children);
 
     return directory;
   } catch (error) {
     console.error(`Error building directory tree for ${dirPath}:`, error);
     return null;
   }
-}
+};
 
-export const buildRootTree = (topDirectories: TopLevelDirectory[], maxDepth: number = 10): Directory => {
+export const buildRootTree = (
+  topDirectories: TopLevelDirectory[],
+  maxDepth: number = 10
+): Directory => {
   const root: Directory = {
     type: 'directory',
     fileName: 'Root',
@@ -120,13 +128,21 @@ export const buildRootTree = (topDirectories: TopLevelDirectory[], maxDepth: num
 
   for (const videoDir of topDirectories) {
     try {
-      const tree = buildDirectoryTree(videoDir.systemPath, `/${videoDir.mountPoint}`, videoDir.displayName, maxDepth);
+      const tree = buildDirectoryTree(
+        videoDir.systemPath,
+        `/${videoDir.mountPoint}`,
+        videoDir.displayName,
+        maxDepth
+      );
       if (tree !== null) {
         root.children.push(tree);
         root.videoCount += tree.videoCount;
       }
     } catch (error) {
-      console.error(`Error building tree for ${videoDir.displayName} (${videoDir.systemPath}):`, error);
+      console.error(
+        `Error building tree for ${videoDir.displayName} (${videoDir.systemPath}):`,
+        error
+      );
     }
   }
 
