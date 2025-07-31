@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import express from 'express';
+import express, { Request, Response } from 'express';
 import expressNunjucks from 'express-nunjucks';
 import { buildRootTree, findTreeItemByPath, type TopLevelDirectory } from './tree.js';
 
@@ -76,7 +76,7 @@ const checkDirectoryStatus = (dirPath: string): DirectoryStatus => {
 
 const root = buildRootTree(videoDirectories, 10);
 
-app.get('/', (_req, res) => {
+app.get('/', (_req: Request, res: Response): void => {
   const directory = {
     ...root,
     children: root.children.map((child) => ({
@@ -87,21 +87,29 @@ app.get('/', (_req, res) => {
     })),
   };
 
-  res.render('index.njk', {
+  return res.render('index.njk', {
     title: 'Video Streaming Server',
     directory,
   });
 });
 
-app.get('/browse/:path(*)', (req, res) => {
-  const directoryPath = decodeURIComponent(req.params.path);
+app.get('/browse/:path(*)', (req: Request, res: Response): void => {
+  const directoryPath = decodeURIComponent(req.params['path'] ?? '');
   const dir = findTreeItemByPath(root, `/${directoryPath}`);
   if (dir === null) {
-    return res.status(404).json({ error: 'Directory not found' });
+    return res.status(404).render('error.njk', {
+      title: 'Directory Not Found',
+      statusCode: 404,
+      message: `Directory not found: ${directoryPath}`,
+    });
   }
 
   if (dir.type !== 'directory') {
-    return res.status(400).json({ error: 'Path is not a directory' });
+    return res.status(400).render('error.njk', {
+      title: 'Invalid Directory',
+      statusCode: 400,
+      message: `Path is not a directory: ${directoryPath}`,
+    });
   }
 
   const directory = {
@@ -114,42 +122,55 @@ app.get('/browse/:path(*)', (req, res) => {
     })),
   };
 
-  res.render('index.njk', {
+  return res.render('index.njk', {
     title: `Browsing ${directoryPath}`,
     directory,
   });
 });
 
-app.get('/video/:path(*)', (req, res) => {
-  const directoryPath = decodeURIComponent(req.params.path);
+app.get('/video/:path(*)', (req: Request, res: Response): void => {
+  const directoryPath = decodeURIComponent(req.params['path'] ?? '');
   const videoItem = findTreeItemByPath(root, `/${directoryPath}`);
 
   if (videoItem === null || videoItem.type !== 'file') {
-    return res.status(404).json({ error: 'Video not found' });
+    return res.status(404).render('error.njk', {
+      title: 'Video Not Found',
+      statusCode: 404,
+      message: `Video not found: ${directoryPath}`,
+    });
   }
 
-  res.render('video.njk', {
+  return res.render('video.njk', {
     title: `Browsing ${directoryPath}`,
     videoSrc: `/stream/${directoryPath}`,
   });
 });
 
-app.get('/stream/:path(*)', (req, res) => {
-  const videoFile = findTreeItemByPath(root, `/${req.params.path}`);
+app.get('/stream/:path(*)', (req: Request, res: Response): void => {
+  const videoPath = decodeURIComponent(req.params['path'] ?? '');
+  const videoFile = findTreeItemByPath(root, `/${videoPath}`);
   if (videoFile === null || videoFile.type !== 'file') {
-    return res.status(404).json({ error: 'Video not found' });
+    return res.status(404).render('error.njk', {
+      title: 'Video Not Found',
+      statusCode: 404,
+      message: `Video not found: ${videoPath}`,
+    });
   }
 
-  const videoPath = decodeURIComponent(videoFile.systemPath);
-  if (!fs.existsSync(videoPath)) {
-    return res.status(404).json({ error: 'Video not found' });
+  const systemPath = decodeURIComponent(videoFile.systemPath);
+  if (!fs.existsSync(systemPath)) {
+    return res.status(404).render('error.njk', {
+      title: 'Video Not Found',
+      statusCode: 404,
+      message: `Video not found: ${videoPath}`,
+    });
   }
 
-  const stat = fs.statSync(videoPath);
+  const stat = fs.statSync(systemPath);
   const fileSize = stat.size;
   const range = req.headers.range;
 
-  const ext = path.extname(videoPath).toLowerCase();
+  const ext = path.extname(systemPath).toLowerCase();
   const mimeTypes: { [key in string]?: string } = {
     '.mp4': 'video/mp4',
     '.avi': 'video/x-msvideo',
@@ -169,7 +190,7 @@ app.get('/stream/:path(*)', (req, res) => {
     const start = parseInt(parts[0], 10);
     const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
     const chunksize = end - start + 1;
-    const file = fs.createReadStream(videoPath, { start, end });
+    const file = fs.createReadStream(systemPath, { start, end });
     const head = {
       'Content-Range': `bytes ${start}-${end}/${fileSize}`,
       'Accept-Ranges': 'bytes',
@@ -185,7 +206,7 @@ app.get('/stream/:path(*)', (req, res) => {
       'Content-Type': contentType,
     };
     res.writeHead(200, head);
-    fs.createReadStream(videoPath).pipe(res);
+    fs.createReadStream(systemPath).pipe(res);
   }
 });
 
