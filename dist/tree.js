@@ -9,12 +9,42 @@ const sortTreeItems = (items) => {
         return a.fileName.localeCompare(b.fileName);
     });
 };
-const buildDirectoryTree = (dirPath, basePath, displayName, maxDepth = 10, currentDepth = 0) => {
+function createTreeItem(item, parent, maxDepth, currentDepth = 0) {
+    const systemPath = path.join(parent.systemPath, item);
+    const contentPath = path.join(parent.contentPath, item);
+    try {
+        const stat = fs.statSync(systemPath);
+        if (stat.isDirectory()) {
+            const subDirectory = buildDirectoryTree(systemPath, contentPath, null, maxDepth, currentDepth + 1);
+            if (subDirectory !== null) {
+                return subDirectory;
+            }
+        }
+        else if (stat.isFile()) {
+            const ext = path.extname(item).toLowerCase();
+            if (videoExtensions.includes(ext)) {
+                return {
+                    type: 'file',
+                    fileName: item,
+                    displayName: path.parse(item).name,
+                    systemPath,
+                    contentPath,
+                    size: stat.size,
+                    modified: stat.mtime,
+                };
+            }
+        }
+    }
+    catch (itemError) {
+        console.error(`Error processing item ${systemPath}:`, itemError);
+    }
+    return null;
+}
+function buildDirectoryTree(dirPath, basePath, displayName, maxDepth = 10, currentDepth = 0) {
     if (currentDepth >= maxDepth) {
         return null;
     }
     try {
-        const items = fs.readdirSync(dirPath);
         const fileName = path.basename(dirPath);
         const directory = {
             type: 'directory',
@@ -25,36 +55,18 @@ const buildDirectoryTree = (dirPath, basePath, displayName, maxDepth = 10, curre
             children: [],
             videoCount: 0,
         };
+        const items = fs.readdirSync(directory.systemPath);
         for (const item of items) {
-            const fullPath = path.join(dirPath, item);
-            const relativePath = path.join(basePath, item);
-            try {
-                const stat = fs.statSync(fullPath);
-                if (stat.isDirectory()) {
-                    const subDirectory = buildDirectoryTree(fullPath, relativePath, null, maxDepth, currentDepth + 1);
-                    if (subDirectory !== null) {
-                        directory.children.push(subDirectory);
-                        directory.videoCount += subDirectory.videoCount;
-                    }
-                }
-                else if (stat.isFile()) {
-                    const ext = path.extname(item).toLowerCase();
-                    if (videoExtensions.includes(ext)) {
-                        directory.children.push({
-                            fileName: item,
-                            displayName: path.parse(item).name,
-                            systemPath: fullPath,
-                            contentPath: relativePath,
-                            type: 'file',
-                            size: stat.size,
-                            modified: stat.mtime,
-                        });
-                        directory.videoCount += 1;
-                    }
-                }
+            const treeItem = createTreeItem(item, directory, maxDepth, currentDepth);
+            if (treeItem === null) {
+                continue;
             }
-            catch (itemError) {
-                console.error(`Error processing item ${fullPath}:`, itemError);
+            directory.children.push(treeItem);
+            if (treeItem.type === 'file') {
+                directory.videoCount++;
+            }
+            else if (treeItem.type === 'directory') {
+                directory.videoCount += treeItem.videoCount;
             }
         }
         sortTreeItems(directory.children);
@@ -64,7 +76,7 @@ const buildDirectoryTree = (dirPath, basePath, displayName, maxDepth = 10, curre
         console.error(`Error building directory tree for ${dirPath}:`, error);
         return null;
     }
-};
+}
 export const buildRootTree = (topDirectories, maxDepth = 10) => {
     const root = {
         type: 'directory',
