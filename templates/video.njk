@@ -18,6 +18,89 @@
     <script>
       const video = document.getElementById('videoPlayer');
       const btn = document.getElementById('fullscreenBtn');
+      const videoPath = '{{ videoPath }}';
+      const lastPosition = {{ lastPosition or 0 }};
+      
+      let progressTimer = null;
+      let hasStartedPlaying = false;
+
+      // Set initial position when video metadata is loaded
+      video.addEventListener('loadedmetadata', () => {
+        if (lastPosition > 0 && lastPosition < video.duration) {
+          video.currentTime = lastPosition;
+        }
+      });
+
+      // Start progress tracking when video starts playing
+      video.addEventListener('play', () => {
+        if (!hasStartedPlaying) {
+          hasStartedPlaying = true;
+        }
+        
+        // Clear any existing timer
+        if (progressTimer) {
+          clearInterval(progressTimer);
+        }
+        
+        // Start sending progress updates every 10 seconds
+        progressTimer = setInterval(() => {
+          if (!video.paused && !video.ended) {
+            saveProgress(video.currentTime);
+          }
+        }, 10000);
+      });
+
+      // Stop progress tracking when video is paused
+      video.addEventListener('pause', () => {
+        if (progressTimer) {
+          clearInterval(progressTimer);
+          progressTimer = null;
+        }
+        // Save progress immediately when paused
+        saveProgress(video.currentTime);
+      });
+
+      // Save progress when video ends
+      video.addEventListener('ended', () => {
+        if (progressTimer) {
+          clearInterval(progressTimer);
+          progressTimer = null;
+        }
+        // Reset progress to 0 when video is completed
+        saveProgress(0);
+      });
+
+      // Save progress before page unload
+      window.addEventListener('beforeunload', () => {
+        if (hasStartedPlaying && !video.ended) {
+          // Use sendBeacon for reliable delivery on page unload
+          const data = JSON.stringify({
+            videoPath: videoPath,
+            position: video.currentTime
+          });
+          navigator.sendBeacon('/api/progress', data);
+        }
+      });
+
+      // Function to save progress to the server
+      async function saveProgress(position) {
+        try {
+          await fetch('/api/progress', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              videoPath: videoPath,
+              position: position
+            })
+          });
+        } catch (error) {
+          console.error('Failed to save progress:', error);
+        }
+      }
+
+      // Fullscreen functionality
       btn.addEventListener('click', () => {
         if (video.requestFullscreen) {
           video.requestFullscreen();

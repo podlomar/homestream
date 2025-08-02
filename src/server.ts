@@ -3,6 +3,7 @@ import path from 'node:path';
 import express, { Request, Response } from 'express';
 import expressNunjucks from 'express-nunjucks';
 import { buildRootTree, findTreeItemByPath, type TopLevelDirectory } from './tree.js';
+import { savePlaybackProgress, loadPlaybackProgress, removePlaybackProgress } from './progress.js';
 
 const app = express();
 const PORT = 3001;
@@ -10,6 +11,7 @@ const PORT = 3001;
 app.set('views', 'templates');
 app.set('view engine', 'njk');
 app.use(express.static('public'));
+app.use(express.json());
 
 const isDev = app.get('env') === 'development';
 
@@ -76,6 +78,44 @@ const checkDirectoryStatus = (dirPath: string): DirectoryStatus => {
 
 const root = buildRootTree(videoDirectories, 10);
 
+app.post('/api/progress', async (req: Request, res: Response) => {
+  try {
+    const { videoPath, position } = req.body;
+
+    if (typeof videoPath !== 'string' || typeof position !== 'number') {
+      return res.status(400).json({ error: 'Invalid videoPath or position' });
+    }
+
+    await savePlaybackProgress(videoPath, position);
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Error saving progress:', error);
+    return res.status(500).json({ error: 'Failed to save progress' });
+  }
+});
+
+app.get('/api/progress/:path(*)', async (req: Request, res: Response) => {
+  try {
+    const videoPath = req.params['path'] ?? '';
+    const position = await loadPlaybackProgress(videoPath);
+    return res.json({ videoPath, position });
+  } catch (error) {
+    console.error('Error getting progress:', error);
+    return res.status(500).json({ error: 'Failed to get progress' });
+  }
+});
+
+app.delete('/api/progress/:path(*)', async (req: Request, res: Response) => {
+  try {
+    const videoPath = req.params['path'] ?? '';
+    await removePlaybackProgress(videoPath);
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Error removing progress:', error);
+    return res.status(500).json({ error: 'Failed to remove progress' });
+  }
+});
+
 app.get('/', (_req: Request, res: Response): void => {
   const directory = {
     ...root,
@@ -128,7 +168,7 @@ app.get('/browse/:path(*)', (req: Request, res: Response): void => {
   });
 });
 
-app.get('/video/:path(*)', (req: Request, res: Response): void => {
+app.get('/video/:path(*)', async (req: Request, res: Response) => {
   const videoPath = req.params['path'] ?? '';
   const videoItem = findTreeItemByPath(root, `/${videoPath}`);
 
@@ -140,9 +180,14 @@ app.get('/video/:path(*)', (req: Request, res: Response): void => {
     });
   }
 
+  // Get the last playback position for this video
+  const lastPosition = await loadPlaybackProgress(videoPath);
+
   return res.render('video.njk', {
     title: `Browsing ${videoPath}`,
     videoSrc: `/stream/${videoPath}`,
+    videoPath: videoPath,
+    lastPosition: lastPosition,
   });
 });
 
