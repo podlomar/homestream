@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { loadStoredProgress, StoredProgress } from './progress.js';
 
 interface BaseTreeItem {
   fileName: string;
@@ -18,6 +19,7 @@ export interface VideoFile extends BaseTreeItem {
   type: 'file';
   size: number;
   modified: Date;
+  lastPlaybackPosition: number;
 }
 
 export type TreeItem = Directory | VideoFile;
@@ -43,6 +45,7 @@ const sortTreeItems = (items: TreeItem[]): void => {
 function createTreeItem(
   item: string,
   parent: Directory,
+  storedProgress: StoredProgress,
   maxDepth: number,
   currentDepth: number = 0
 ): TreeItem | null {
@@ -56,6 +59,7 @@ function createTreeItem(
         systemPath,
         contentPath,
         null,
+        storedProgress,
         maxDepth,
         currentDepth + 1
       );
@@ -73,6 +77,7 @@ function createTreeItem(
           contentPath,
           size: stat.size,
           modified: stat.mtime,
+          lastPlaybackPosition: storedProgress[contentPath]?.lastPlaybackPosition ?? 0,
         };
       }
     }
@@ -87,6 +92,7 @@ function buildDirectoryTree(
   dirPath: string,
   basePath: string,
   displayName: string | null,
+  storedProgress: StoredProgress,
   maxDepth: number = 10,
   currentDepth: number = 0
 ): Directory | null {
@@ -108,7 +114,7 @@ function buildDirectoryTree(
 
     const items = fs.readdirSync(directory.systemPath);
     for (const item of items) {
-      const treeItem = createTreeItem(item, directory, maxDepth, currentDepth);
+      const treeItem = createTreeItem(item, directory, storedProgress, maxDepth, currentDepth);
 
       if (treeItem === null) {
         continue;
@@ -131,10 +137,12 @@ function buildDirectoryTree(
   }
 }
 
-export const buildRootTree = (
+export const buildRootTree = async (
   topDirectories: TopLevelDirectory[],
   maxDepth: number = 10
-): Directory => {
+): Promise<Directory> => {
+  const storedProgress = await loadStoredProgress();
+
   const root: Directory = {
     type: 'directory',
     fileName: 'Root',
@@ -151,6 +159,7 @@ export const buildRootTree = (
         videoDir.systemPath,
         `/${videoDir.mountPoint}`,
         videoDir.displayName,
+        storedProgress,
         maxDepth
       );
       if (tree !== null) {

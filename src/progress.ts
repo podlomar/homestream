@@ -6,30 +6,36 @@ export interface VideoProgress {
   lastPlaybackPosition: number;
 }
 
+export type StoredProgress = {
+  [videoPath in string]?: {
+    lastPlaybackPosition: number;
+  };
+}
+
 const PROGRESS_FILE_PATH = path.join(process.cwd(), 'storage', 'progress.json');
 
 const ensureProgressFileExists = async (): Promise<void> => {
   try {
     await fs.access(PROGRESS_FILE_PATH);
   } catch {
-    // File doesn't exist, create it with empty array
+    // File doesn't exist, create it with empty object
     await fs.mkdir(path.dirname(PROGRESS_FILE_PATH), { recursive: true });
-    await fs.writeFile(PROGRESS_FILE_PATH, JSON.stringify([], null, 2));
+    await fs.writeFile(PROGRESS_FILE_PATH, JSON.stringify({}, null, 2));
   }
 };
 
-const readProgressFile = async (): Promise<VideoProgress[]> => {
+export const loadStoredProgress = async (): Promise<StoredProgress> => {
   await ensureProgressFileExists();
   try {
     const data = await fs.readFile(PROGRESS_FILE_PATH, 'utf-8');
-    return JSON.parse(data) as VideoProgress[];
+    return JSON.parse(data) as StoredProgress;
   } catch (error) {
     console.error('Error reading progress file:', error);
-    return [];
+    return {};
   }
-}
+};
 
-const writeProgressFile = async (progress: VideoProgress[]): Promise<void> => {
+const writeProgressFile = async (progress: StoredProgress): Promise<void> => {
   try {
     await fs.writeFile(PROGRESS_FILE_PATH, JSON.stringify(progress, null, 2));
   } catch (error) {
@@ -39,37 +45,23 @@ const writeProgressFile = async (progress: VideoProgress[]): Promise<void> => {
 };
 
 export const savePlaybackProgress = async (videoPath: string, position: number): Promise<void> => {
-  const progressData = await readProgressFile();
+  const progressData = await loadStoredProgress();
 
-  // Find existing entry for this video
-  const existingIndex = progressData.findIndex(item => item.videoPath === videoPath);
-
-  if (existingIndex >= 0) {
-    // Update existing entry
-    progressData[existingIndex].lastPlaybackPosition = position;
-  } else {
-    // Add new entry
-    progressData.push({
-      videoPath,
-      lastPlaybackPosition: position
-    });
-  }
+  // Update or add entry for this video
+  progressData[videoPath] = {
+    lastPlaybackPosition: position
+  };
 
   await writeProgressFile(progressData);
 }
 
 export const loadPlaybackProgress = async (videoPath: string): Promise<number> => {
-  const progressData = await readProgressFile();
-  const entry = progressData.find(item => item.videoPath === videoPath);
-  return entry?.lastPlaybackPosition ?? 0;
+  const progressData = await loadStoredProgress();
+  return progressData[videoPath]?.lastPlaybackPosition ?? 0;
 };
 
 export const removePlaybackProgress = async (videoPath: string): Promise<void> => {
-  const progressData = await readProgressFile();
-  const filteredData = progressData.filter(item => item.videoPath !== videoPath);
-  await writeProgressFile(filteredData);
-};
-
-export const getAllProgress = async (): Promise<VideoProgress[]> => {
-  return await readProgressFile();
+  const progressData = await loadStoredProgress();
+  delete progressData[videoPath];
+  await writeProgressFile(progressData);
 };

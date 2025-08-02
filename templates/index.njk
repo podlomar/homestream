@@ -54,7 +54,10 @@
           <svg class="itemIcon" width="32" height="32">
             <use href="#icon-movie"></use>
           </svg>
-          <span class="videoName">{{ child.displayName }}</span>
+          <div class="videoDetails">
+            <div class="videoName">{{ child.displayName }}</div>
+            <div class="lastPlaybackPosition">Last: {{ child.lastPlaybackPosition }}</div>
+          </div>
         </a>
       {% endif %}
     {% endfor %}

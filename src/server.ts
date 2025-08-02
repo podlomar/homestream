@@ -76,7 +76,7 @@ const checkDirectoryStatus = (dirPath: string): DirectoryStatus => {
   }
 };
 
-const root = buildRootTree(videoDirectories, 10);
+const root = await buildRootTree(videoDirectories, 10);
 
 app.post('/api/progress', async (req: Request, res: Response) => {
   try {

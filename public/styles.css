@@ -65,7 +65,7 @@ header p {
 }
 
 .folderItem .folderName,
-.folderItem .videoName {
+.folderItem .videoDetails {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
