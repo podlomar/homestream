@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { loadStoredProgress, StoredProgress } from './progress.js';
+import { VideoProgressStore } from './progress.js';
 
 interface BaseTreeItem {
   fileName: string;
@@ -45,7 +45,7 @@ const sortTreeItems = (items: TreeItem[]): void => {
 function createTreeItem(
   item: string,
   parent: Directory,
-  storedProgress: StoredProgress,
+  progressStore: VideoProgressStore,
   maxDepth: number,
   currentDepth: number = 0
 ): TreeItem | null {
@@ -59,7 +59,7 @@ function createTreeItem(
         systemPath,
         contentPath,
         null,
-        storedProgress,
+        progressStore,
         maxDepth,
         currentDepth + 1
       );
@@ -77,7 +77,7 @@ function createTreeItem(
           contentPath,
           size: stat.size,
           modified: stat.mtime,
-          lastPlaybackPosition: storedProgress[contentPath]?.lastPlaybackPosition ?? 0,
+          lastPlaybackPosition: progressStore.getVideoProgress(contentPath),
         };
       }
     }
@@ -92,7 +92,7 @@ function buildDirectoryTree(
   dirPath: string,
   basePath: string,
   displayName: string | null,
-  storedProgress: StoredProgress,
+  progressStore: VideoProgressStore,
   maxDepth: number = 10,
   currentDepth: number = 0
 ): Directory | null {
@@ -114,7 +114,7 @@ function buildDirectoryTree(
 
     const items = fs.readdirSync(directory.systemPath);
     for (const item of items) {
-      const treeItem = createTreeItem(item, directory, storedProgress, maxDepth, currentDepth);
+      const treeItem = createTreeItem(item, directory, progressStore, maxDepth, currentDepth);
 
       if (treeItem === null) {
         continue;
@@ -137,12 +137,11 @@ function buildDirectoryTree(
   }
 }
 
-export const buildRootTree = async (
+export const buildRootTree = (
   topDirectories: TopLevelDirectory[],
+  progressStore: VideoProgressStore,
   maxDepth: number = 10
-): Promise<Directory> => {
-  const storedProgress = await loadStoredProgress();
-
+): Directory => {
   const root: Directory = {
     type: 'directory',
     fileName: 'Root',
@@ -159,7 +158,7 @@ export const buildRootTree = async (
         videoDir.systemPath,
         `/${videoDir.mountPoint}`,
         videoDir.displayName,
-        storedProgress,
+        progressStore,
         maxDepth
       );
       if (tree !== null) {
@@ -177,20 +176,66 @@ export const buildRootTree = async (
   return root;
 };
 
-export const findTreeItemByPath = (tree: TreeItem, path: string): TreeItem | null => {
-  if (tree.contentPath === path) {
-    return tree;
+export class VideoLibrary {
+  private root: Directory;
+  private videoProgressStore: VideoProgressStore;
+
+  public constructor(root: Directory, videoProgressStore: VideoProgressStore) {
+    this.root = root;
+    this.videoProgressStore = videoProgressStore;
   }
 
-  if (tree.type !== 'directory') {
+  public static async load(
+    topDirectories: TopLevelDirectory[],
+    maxDepth: number = 10,
+  ): Promise<VideoLibrary> {
+    const videoProgressStore = await VideoProgressStore.load();
+    const root = buildRootTree(topDirectories, videoProgressStore, maxDepth);
+    return new VideoLibrary(root, videoProgressStore);
+  }
+
+  public getRoot(): Directory {
+    return this.root;
+  }
+
+  public getVideoProgressStore(): VideoProgressStore {
+    return this.videoProgressStore;
+  }
+
+  public findItemByPath(path: string, start: TreeItem = this.root): TreeItem | null {
+    if (start.contentPath === path) {
+      if (start.type === 'file') {
+        return {
+          ...start,
+          lastPlaybackPosition: this.videoProgressStore.getVideoProgress(start.contentPath),
+        };
+      }
+
+      return start;
+    }
+
+    if (start.type !== 'directory') {
+      return null;
+    }
+
+    for (const child of start.children) {
+      if (path.startsWith(child.contentPath)) {
+        return this.findItemByPath(path, child);
+      }
+    }
+
     return null;
   }
 
-  for (const child of tree.children) {
-    if (path.startsWith(child.contentPath)) {
-      return findTreeItemByPath(child, path);
-    }
+  public saveVideoProgress(videoPath: string, position: number): void {
+    this.videoProgressStore.saveVideoProgress(videoPath, position);
   }
 
-  return null;
+  public getVideoProgress(videoPath: string): number {
+    return this.videoProgressStore.getVideoProgress(videoPath);
+  }
+
+  public deleteVideoProgress(videoPath: string): void {
+    this.videoProgressStore.deleteVideoProgress(videoPath);
+  }
 };

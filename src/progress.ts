@@ -6,7 +6,7 @@ export interface VideoProgress {
   lastPlaybackPosition: number;
 }
 
-export type StoredProgress = {
+type ProgressData = {
   [videoPath in string]?: {
     lastPlaybackPosition: number;
   };
@@ -24,44 +24,35 @@ const ensureProgressFileExists = async (): Promise<void> => {
   }
 };
 
-export const loadStoredProgress = async (): Promise<StoredProgress> => {
-  await ensureProgressFileExists();
-  try {
+export class VideoProgressStore {
+  private progressData: ProgressData = {};
+
+  private constructor(progressData: ProgressData) {
+    this.progressData = progressData;
+  }
+
+  static async load(): Promise<VideoProgressStore> {
+    await ensureProgressFileExists();
     const data = await fs.readFile(PROGRESS_FILE_PATH, 'utf-8');
-    return JSON.parse(data) as StoredProgress;
-  } catch (error) {
-    console.error('Error reading progress file:', error);
-    return {};
+    const progressData = JSON.parse(data) as ProgressData;
+    return new VideoProgressStore(progressData);
   }
-};
 
-const writeProgressFile = async (progress: StoredProgress): Promise<void> => {
-  try {
-    await fs.writeFile(PROGRESS_FILE_PATH, JSON.stringify(progress, null, 2));
-  } catch (error) {
-    console.error('Error writing progress file:', error);
-    throw error;
+  public async saveStore(): Promise<void> {
+    await fs.writeFile(PROGRESS_FILE_PATH, JSON.stringify(this.progressData, null, 2));
   }
-};
 
-export const savePlaybackProgress = async (videoPath: string, position: number): Promise<void> => {
-  const progressData = await loadStoredProgress();
+  public getVideoProgress(videoPath: string): number {
+    return this.progressData[videoPath]?.lastPlaybackPosition ?? 0;
+  }
 
-  // Update or add entry for this video
-  progressData[videoPath] = {
-    lastPlaybackPosition: position
-  };
+  public saveVideoProgress(videoPath: string, position: number): void {
+    this.progressData[videoPath] = { lastPlaybackPosition: position };
+    this.saveStore();
+  }
 
-  await writeProgressFile(progressData);
+  public deleteVideoProgress(videoPath: string): void {
+    delete this.progressData[videoPath];
+    this.saveStore();
+  }
 }
-
-export const loadPlaybackProgress = async (videoPath: string): Promise<number> => {
-  const progressData = await loadStoredProgress();
-  return progressData[videoPath]?.lastPlaybackPosition ?? 0;
-};
-
-export const removePlaybackProgress = async (videoPath: string): Promise<void> => {
-  const progressData = await loadStoredProgress();
-  delete progressData[videoPath];
-  await writeProgressFile(progressData);
-};

@@ -76,6 +76,11 @@ header p {
   flex: 0 0 auto;
 }
 
+.lastPlaybackPosition {
+  font-size: 0.9em;
+  color: #aaa;
+}
+
 #videoPlayer {
   width: 100%;
   aspect-ratio: 16 / 9;

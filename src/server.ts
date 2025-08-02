@@ -2,8 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import express, { Request, Response } from 'express';
 import expressNunjucks from 'express-nunjucks';
-import { buildRootTree, findTreeItemByPath, type TopLevelDirectory } from './tree.js';
-import { savePlaybackProgress, loadPlaybackProgress, removePlaybackProgress } from './progress.js';
+import { VideoLibrary, type TopLevelDirectory } from './tree.js';
 
 const app = express();
 const PORT = 3001;
@@ -20,27 +19,6 @@ expressNunjucks(app, {
   watch: isDev,
   noCache: isDev,
 });
-
-const videoDirectories: TopLevelDirectory[] = [
-  {
-    displayName: 'Computer',
-    systemPath: '/home/podlomar/Videos',
-    mountPoint: 'computer',
-    description: 'Computer video collection',
-  },
-  {
-    displayName: 'External Hard Drive',
-    systemPath: '/media/podlomar/Data/video',
-    mountPoint: 'external',
-    description: 'Movie collection (external drive)',
-  },
-  {
-    displayName: 'SanDisk Archive',
-    systemPath: '/media/podlomar/SanDisk',
-    mountPoint: 'sandisk',
-    description: 'Flash drive archive',
-  },
-];
 
 interface DirectoryStatus {
   status: 'accessible' | 'not_found' | 'not_directory' | 'no_permission' | 'io_error' | 'error';
@@ -76,7 +54,28 @@ const checkDirectoryStatus = (dirPath: string): DirectoryStatus => {
   }
 };
 
-const root = await buildRootTree(videoDirectories, 10);
+const videoDirectories: TopLevelDirectory[] = [
+  {
+    displayName: 'Computer',
+    systemPath: '/home/podlomar/Videos',
+    mountPoint: 'computer',
+    description: 'Computer video collection',
+  },
+  {
+    displayName: 'External Hard Drive',
+    systemPath: '/media/podlomar/Data/video',
+    mountPoint: 'external',
+    description: 'Movie collection (external drive)',
+  },
+  {
+    displayName: 'SanDisk Archive',
+    systemPath: '/media/podlomar/SanDisk',
+    mountPoint: 'sandisk',
+    description: 'Flash drive archive',
+  },
+];
+
+const videoLibrary = await VideoLibrary.load(videoDirectories);
 
 app.post('/api/progress', async (req: Request, res: Response) => {
   try {
@@ -86,7 +85,7 @@ app.post('/api/progress', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid videoPath or position' });
     }
 
-    await savePlaybackProgress(videoPath, position);
+    videoLibrary.saveVideoProgress(`/${videoPath}`, position);
     return res.json({ success: true });
   } catch (error) {
     console.error('Error saving progress:', error);
@@ -97,7 +96,7 @@ app.post('/api/progress', async (req: Request, res: Response) => {
 app.get('/api/progress/:path(*)', async (req: Request, res: Response) => {
   try {
     const videoPath = req.params['path'] ?? '';
-    const position = await loadPlaybackProgress(videoPath);
+    const position = videoLibrary.getVideoProgress(videoPath);
     return res.json({ videoPath, position });
   } catch (error) {
     console.error('Error getting progress:', error);
@@ -108,7 +107,7 @@ app.get('/api/progress/:path(*)', async (req: Request, res: Response) => {
 app.delete('/api/progress/:path(*)', async (req: Request, res: Response) => {
   try {
     const videoPath = req.params['path'] ?? '';
-    await removePlaybackProgress(videoPath);
+    videoLibrary.deleteVideoProgress(videoPath);
     return res.json({ success: true });
   } catch (error) {
     console.error('Error removing progress:', error);
@@ -116,7 +115,23 @@ app.delete('/api/progress/:path(*)', async (req: Request, res: Response) => {
   }
 });
 
+const formatDuration = (seconds: number): string => {
+  const wholeSeconds = Math.floor(seconds);
+  if (wholeSeconds === 0) return 'No playback';
+
+  const hours = Math.floor(wholeSeconds / 3600);
+  const minutes = Math.floor((wholeSeconds % 3600) / 60);
+  const secs = Math.floor(wholeSeconds % 60);
+
+  const strHours = hours > 0 ? `${hours}h ` : '';
+  const strMinutes = minutes > 0 ? `${minutes}m ` : '';
+  const strSecs = `${secs}s`;
+
+  return `${strHours}${strMinutes}${strSecs}`;
+};
+
 app.get('/', (_req: Request, res: Response): void => {
+  const root = videoLibrary.getRoot();
   const directory = {
     ...root,
     children: root.children.map((child) => ({
@@ -124,6 +139,7 @@ app.get('/', (_req: Request, res: Response): void => {
       children: undefined,
       url:
         child.type === 'directory' ? `/browse${child.contentPath}` : `/video${child.contentPath}`,
+      lastPlaybackPosition: formatDuration(videoLibrary.getVideoProgress(child.contentPath)),
     })),
   };
 
@@ -135,7 +151,7 @@ app.get('/', (_req: Request, res: Response): void => {
 
 app.get('/browse/:path(*)', (req: Request, res: Response): void => {
   const directoryPath = req.params['path'] ?? '';
-  const treeItem = findTreeItemByPath(root, `/${directoryPath}`);
+  const treeItem = videoLibrary.findItemByPath(`/${directoryPath}`);
   if (treeItem === null) {
     return res.status(404).render('error.njk', {
       title: 'Directory Not Found',
@@ -159,6 +175,7 @@ app.get('/browse/:path(*)', (req: Request, res: Response): void => {
       children: undefined,
       url:
         child.type === 'directory' ? `/browse${child.contentPath}` : `/video${child.contentPath}`,
+      lastPlaybackPosition: formatDuration(videoLibrary.getVideoProgress(child.contentPath) ?? 0),
     })),
   };
 
@@ -170,7 +187,7 @@ app.get('/browse/:path(*)', (req: Request, res: Response): void => {
 
 app.get('/video/:path(*)', async (req: Request, res: Response) => {
   const videoPath = req.params['path'] ?? '';
-  const videoItem = findTreeItemByPath(root, `/${videoPath}`);
+  const videoItem = videoLibrary.findItemByPath(`/${videoPath}`);
 
   if (videoItem === null || videoItem.type !== 'file') {
     return res.status(404).render('error.njk', {
@@ -180,20 +197,17 @@ app.get('/video/:path(*)', async (req: Request, res: Response) => {
     });
   }
 
-  // Get the last playback position for this video
-  const lastPosition = await loadPlaybackProgress(videoPath);
-
   return res.render('video.njk', {
     title: `Browsing ${videoPath}`,
     videoSrc: `/stream/${videoPath}`,
     videoPath: videoPath,
-    lastPosition: lastPosition,
+    lastPosition: videoItem.lastPlaybackPosition,
   });
 });
 
 app.get('/stream/:path(*)', (req: Request, res: Response): void => {
   const videoPath = req.params['path'] ?? '';
-  const videoItem = findTreeItemByPath(root, `/${videoPath}`);
+  const videoItem = videoLibrary.findItemByPath(`/${videoPath}`);
   if (videoItem === null || videoItem.type !== 'file') {
     return res.status(404).render('error.njk', {
       title: 'Video Not Found',
