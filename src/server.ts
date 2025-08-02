@@ -94,9 +94,9 @@ app.get('/', (_req: Request, res: Response): void => {
 });
 
 app.get('/browse/:path(*)', (req: Request, res: Response): void => {
-  const directoryPath = decodeURIComponent(req.params['path'] ?? '');
-  const dir = findTreeItemByPath(root, `/${directoryPath}`);
-  if (dir === null) {
+  const directoryPath = req.params['path'] ?? '';
+  const treeItem = findTreeItemByPath(root, `/${directoryPath}`);
+  if (treeItem === null) {
     return res.status(404).render('error.njk', {
       title: 'Directory Not Found',
       statusCode: 404,
@@ -104,7 +104,7 @@ app.get('/browse/:path(*)', (req: Request, res: Response): void => {
     });
   }
 
-  if (dir.type !== 'directory') {
+  if (treeItem.type !== 'directory') {
     return res.status(400).render('error.njk', {
       title: 'Invalid Directory',
       statusCode: 400,
@@ -113,8 +113,8 @@ app.get('/browse/:path(*)', (req: Request, res: Response): void => {
   }
 
   const directory = {
-    ...dir,
-    children: dir.children.map((child) => ({
+    ...treeItem,
+    children: treeItem.children.map((child) => ({
       ...child,
       children: undefined,
       url:
@@ -129,27 +129,10 @@ app.get('/browse/:path(*)', (req: Request, res: Response): void => {
 });
 
 app.get('/video/:path(*)', (req: Request, res: Response): void => {
-  const directoryPath = decodeURIComponent(req.params['path'] ?? '');
-  const videoItem = findTreeItemByPath(root, `/${directoryPath}`);
+  const videoPath = req.params['path'] ?? '';
+  const videoItem = findTreeItemByPath(root, `/${videoPath}`);
 
   if (videoItem === null || videoItem.type !== 'file') {
-    return res.status(404).render('error.njk', {
-      title: 'Video Not Found',
-      statusCode: 404,
-      message: `Video not found: ${directoryPath}`,
-    });
-  }
-
-  return res.render('video.njk', {
-    title: `Browsing ${directoryPath}`,
-    videoSrc: `/stream/${directoryPath}`,
-  });
-});
-
-app.get('/stream/:path(*)', (req: Request, res: Response): void => {
-  const videoPath = decodeURIComponent(req.params['path'] ?? '');
-  const videoFile = findTreeItemByPath(root, `/${videoPath}`);
-  if (videoFile === null || videoFile.type !== 'file') {
     return res.status(404).render('error.njk', {
       title: 'Video Not Found',
       statusCode: 404,
@@ -157,7 +140,24 @@ app.get('/stream/:path(*)', (req: Request, res: Response): void => {
     });
   }
 
-  const systemPath = decodeURIComponent(videoFile.systemPath);
+  return res.render('video.njk', {
+    title: `Browsing ${videoPath}`,
+    videoSrc: `/stream/${videoPath}`,
+  });
+});
+
+app.get('/stream/:path(*)', (req: Request, res: Response): void => {
+  const videoPath = req.params['path'] ?? '';
+  const videoItem = findTreeItemByPath(root, `/${videoPath}`);
+  if (videoItem === null || videoItem.type !== 'file') {
+    return res.status(404).render('error.njk', {
+      title: 'Video Not Found',
+      statusCode: 404,
+      message: `Video not found: ${videoPath}`,
+    });
+  }
+
+  const systemPath = decodeURIComponent(videoItem.systemPath);
   if (!fs.existsSync(systemPath)) {
     return res.status(404).render('error.njk', {
       title: 'Video Not Found',
