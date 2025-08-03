@@ -23,6 +23,7 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
+    "resolveJsonModule": true,
     // Emit
     "skipLibCheck": true,
     "declaration": true,

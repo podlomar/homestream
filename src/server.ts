@@ -3,9 +3,10 @@ import path from 'node:path';
 import express, { Request, Response } from 'express';
 import expressNunjucks from 'express-nunjucks';
 import { VideoLibrary, type TopLevelDirectory } from './tree.js';
+import pkg from '../package.json' with { type: 'json' };
 
 const app = express();
-const PORT = 3001;
+const PORT = parseInt(process.env['PORT'] ?? '3001', 10);
 
 app.set('views', 'templates');
 app.set('view engine', 'njk');
@@ -146,6 +147,7 @@ app.get('/', (_req: Request, res: Response): void => {
   return res.render('index.njk', {
     title: 'Video Streaming Server',
     directory,
+    version: pkg.version,
   });
 });
 
@@ -182,6 +184,7 @@ app.get('/browse/:path(*)', (req: Request, res: Response): void => {
   return res.render('index.njk', {
     title: `Browsing ${directoryPath}`,
     directory,
+    version: pkg.version,
   });
 });
 
