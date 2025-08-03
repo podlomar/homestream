@@ -1,108 +1,145 @@
-# HomeStream - Local Video Player
+# HomeStream - Home Network Video Library
 
-A simple Node.js web application that allows you to stream and play videos from your local Videos folder on your network.
+A simple Node.js web application that allows streaming videos from a computer on a local network.
 
-## Features
+## Deployment Guide
 
-- 🎬 Browse and play videos from your local Videos folder recursively
-- 📁 Organized folder view with video counts and file sizes
-- 📱 **Mobile-first responsive design** optimized for phone viewing
-- ⚡ Fast video streaming with range request support
-- 🎮 Touch-friendly controls with keyboard shortcuts
-- 🔄 Refresh video library
-- 📺 Large full-screen video player (90%+ on mobile)
-- ⏪⏩ Quick 15-second seeking controls that work in fullscreen
-- 💾 **Automatic video position tracking** - remembers where you left off
-- 🔄 **Resume playback** from your last position
-- 🌐 Access from any device on your local network
-- ✨ Overlay controls that work perfectly in fullscreen mode
+This guide describes how to deploy and run the HomeStream Node.js application on a local Ubuntu server, making it accessible over home network via port 80.
 
-## Supported Video Formats
+---
 
-- MP4
-- AVI
-- MKV
-- MOV
-- WMV
-- FLV
-- WebM
-- M4V
+### 📁 Project Directory
 
-## Installation
+Project is located at:  
+`/www/homestream`
 
-1. Make sure you have Node.js installed on your system
-2. Navigate to the project directory
-3. Install dependencies:
-   ```bash
-   npm install
-   ```
+The main entry point is:  
+`dist/server.js`
 
-## Usage
+---
 
-1. Start the server:
-   ```bash
-   npm start
-   ```
-   
-   Or for development with auto-restart:
-   ```bash
-   npm run dev
-   ```
+### ✅ Prerequisites
 
-2. Open your browser and go to:
-   - `http://localhost:3001` (local access)
-   - `http://[your-ip]:3001` (network access - the server will display your IP when starting)
+Ensure the following are installed:
 
-3. The application will automatically scan your `/home/podlomar/Videos` folder recursively and display all compatible video files organized by folder
+- Node.js (v20+ recommended)
+- `systemd` (default on Ubuntu)
+- `ufw` (optional, for firewall control)
 
-## Configuration
+---
 
-If you want to use a different videos directory, edit the `VIDEOS_DIR` constant in `server.js`:
+### ⚙️ Step 1: Grant Node.js Permission for Port 80
 
-```javascript
-const VIDEOS_DIR = '/path/to/your/videos';
+To allow Node.js to bind to privileged port 80 without running as root:
+
+```bash
+sudo setcap 'cap_net_bind_service=+ep' $(which node)
 ```
 
-## Keyboard Shortcuts
+---
 
-When a video is playing:
-- **Spacebar**: Play/Pause
-- **F**: Toggle fullscreen
-- **Left Arrow**: Rewind 15 seconds
-- **Right Arrow**: Forward 15 seconds
+### 🧾 Step 2: Create systemd Service
 
-## Video Position Tracking
+1. Create the systemd service file:
 
-HomeStream automatically remembers where you stopped watching each video:
+```bash
+sudo nano /etc/systemd/system/homestream.service
+```
 
-- **Automatic Saving**: Your position is saved every 5 seconds while watching and when you pause
-- **Smart Resume**: Only saves positions for videos longer than 30 seconds and resumes if you haven't watched 95% or more
-- **Visual Indicators**: Videos with saved positions show a green border and resume indicator with timestamp and progress percentage
-- **Cross-Device**: Position data is stored locally in your browser, so it works across sessions
-- **Auto-Cleanup**: Positions are automatically cleared when you finish watching a video or after 30 days
-- **Resume Notification**: Shows a notification when resuming from a saved position
+2. Paste the following:
 
-Videos with saved positions will display: **▶️ 15:30 (65%)** indicating you can resume from 15 minutes 30 seconds (65% progress).
+```ini
+[Unit]
+Description=HomeStream Node.js Service
+After=network.target
 
-## Controls
+[Service]
+Environment=PORT=80
+WorkingDirectory=/www/homestream
+ExecStart=/usr/bin/node dist/server.js
+Restart=always
+RestartSec=5
+User=your-username
+Group=your-username
+StandardOutput=journal
+StandardError=journal
 
-- **Mobile Touch Controls**: Tap the video to show overlay controls on mobile devices
-- **Overlay Controls**: Hover over the video (desktop) or tap (mobile) to see convenient overlay buttons for play/pause, seeking, and fullscreen
-- **Fullscreen Controls**: Overlay controls work perfectly in fullscreen mode with auto-hide functionality
-- **Main Controls**: Use the buttons below the video player for the same functions
-- **Large Video Player**: The video player takes up 85-92% of the screen height on mobile for optimal viewing
-- **Touch-Optimized**: Larger touch targets and mobile-friendly button sizes
-- **Video Position Tracking**: Automatically saves your watching progress every 5 seconds and when you pause
-- **Resume Playback**: Videos with saved positions show a green resume indicator and automatically resume from where you left off
+[Install]
+WantedBy=multi-user.target
+```
 
-## Network Access
+> Replace `your-username` with your actual Ubuntu username.  
+> Confirm the Node.js path with `which node`.
 
-The server binds to `0.0.0.0:3001`, making it accessible from other devices on your local network. When you start the server, it will display the URLs you can use to access it from other devices.
+---
 
-## Security Note
+### 🔁 Step 3: Start and Enable the Service
 
-This application is designed for local network use only. It serves files from your specified videos directory without authentication. Do not expose this server to the public internet.
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable homestream
+sudo systemctl start homestream
+```
 
-## License
+To check status:
+```bash
+sudo systemctl status homestream
+```
 
-MIT License
+To view logs:
+```bash
+journalctl -u homestream -f
+```
+
+---
+
+### 🔓 Step 4: Open Firewall Port (Optional)
+
+If you're using UFW:
+
+```bash
+sudo ufw allow 80/tcp
+```
+
+---
+
+### 🌐 Step 5: Access the App on the Network
+
+Ensure the app is listening on `0.0.0.0` in the server code:
+
+```js
+app.listen(process.env.PORT || 80, '0.0.0.0');
+```
+
+Access the app from any device on the same network via:
+
+- **Hostname (if mDNS is enabled):**
+  ```
+  http://your-hostname.local
+  ```
+
+- **Custom Local Domain (if using dnsmasq or similar):**
+  ```
+  http://mydomain.home
+  ```
+
+- **Local IP Address:**
+  ```
+  http://192.168.x.x
+  ```
+
+---
+
+### 🔁 Updating the App
+
+After changing code or rebuilding `dist/server.js`, restart the service:
+
+```bash
+sudo systemctl restart homestream
+```
+
+---
+
+## ✅ Done
+
+Your Node.js app should now be running on port 80 and accessible across your home network!
