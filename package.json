@@ -12,7 +12,10 @@
     "format": "biome format src/",
     "format:fix": "biome format --write src/",
     "check": "biome check src/",
-    "check:fix": "biome check --write src/"
+    "check:fix": "biome check --write src/",
+    "clean": "rm -rf dist/",
+    "build": "npm run clean && tsc",
+    "deploy": "npm run build && bash deploy.sh"
   },
   "dependencies": {
     "@types/express": "^5.0.3",
